@@ -1,5 +1,4 @@
-/*
- * Hibernate, Relational Persistence for Idiomatic Java
+/* Hibernate, Relational Persistence for Idiomatic Java
  *
  * SPDX-License-Identifier: Apache-2.0
  * Copyright: Red Hat Inc. and Hibernate Authors
@@ -11,6 +10,7 @@ import io.vertx.junit5.VertxTestContext
 import kotlinx.coroutines.future.await
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions
+import org.hibernate.reactive.CoroutinesTestHelper.test
 import org.hibernate.reactive.coroutines.impl.CoroutinesSessionImpl
 import org.hibernate.reactive.coroutines.impl.CoroutinesStatelessSessionImpl
 import org.hibernate.reactive.pool.BatchingConnection
@@ -19,13 +19,13 @@ import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.minutes
 
 class BatchingConnectionKtTest : BatchingConnectionTest() {
-    private val utilKt = BaseCoroutineTest()
+    // See io.vertx.junit5.Timeout annotation on super test class
     private val timeout = 10.minutes
 
     @Test
     fun testBatchingWithStageAsCoroutinesStateless(context: VertxTestContext) =
         runTest(timeout = timeout) {
-            BaseCoroutineTest.test(context) {
+            test(context) {
                 val pigs =
                     arrayOf(
                         GuineaPig(11, "One"),
@@ -62,7 +62,7 @@ class BatchingConnectionKtTest : BatchingConnectionTest() {
                     GuineaPig(66, "Six"),
                 )
 
-            BaseCoroutineTest.test(context) {
+            test(context) {
                 getCoroutinesSessionFactory()
                     .withStatelessTransaction { s ->
                         // Important, use “spread” (*) when use functions with vararg
@@ -92,7 +92,7 @@ class BatchingConnectionKtTest : BatchingConnectionTest() {
                     GuineaPig(55, "Five"),
                     GuineaPig(66, "Six"),
                 )
-            BaseCoroutineTest.test(context) {
+            test(context) {
                 getCoroutinesSessionFactory()
                     .withStatelessTransaction { s -> s.insertAll(*pigs) }
 
@@ -110,10 +110,10 @@ class BatchingConnectionKtTest : BatchingConnectionTest() {
     @Test
     fun testBatchingConnectionCoroutines(context: VertxTestContext) =
         runTest(timeout = timeout) {
-            BaseCoroutineTest.test(context) {
-                utilKt.openCoroutinesSession().let { session ->
+            test(context) {
+                openCoroutinesSession().let { session ->
                     Assertions
-                        .assertThat((session as CoroutinesSessionImpl).getReactiveConnection())
+                        .assertThat((session.await() as CoroutinesSessionImpl).getReactiveConnection())
                         .isInstanceOf(BatchingConnection::class.java)
                 }
             }
@@ -122,12 +122,11 @@ class BatchingConnectionKtTest : BatchingConnectionTest() {
     @Test
     fun testBatchingConnectionWithCoroutinesStateless(context: VertxTestContext) =
         runTest(timeout = timeout) {
-            BaseCoroutineTest.test(context) {
-                utilKt
-                    .openCoroutinesStatelessSesion()
+            test(context) {
+                openCoroutinesStatelessSession()
                     .let { session ->
                         Assertions
-                            .assertThat((session as CoroutinesStatelessSessionImpl).getReactiveConnection())
+                            .assertThat((session.await() as CoroutinesStatelessSessionImpl).getReactiveConnection())
                             // Stateless session is not affected by the STATEMENT_BATCH_SIZE property
                             .isInstanceOf(SqlClientConnection::class.java)
                     }

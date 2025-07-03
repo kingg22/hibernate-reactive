@@ -333,13 +333,13 @@ public abstract class BaseReactiveTest {
 		if ( closable instanceof Coroutines.Session) {
 			Coroutines.Session coroutines = (Coroutines.Session) closable;
 			if (coroutines.isOpen()) {
-				return coroutines.closeAsStage();
+				return CoroutinesTestHelper.closeAsStage(coroutines);
 			}
 		}
 		if ( closable instanceof Coroutines.StatelessSession) {
 			Coroutines.StatelessSession coroutines = (Coroutines.StatelessSession) closable;
 			if (coroutines.isOpen()) {
-				return coroutines.closeAsStage();
+				return CoroutinesTestHelper.closeAsStage(coroutines);
 			}
 		}
 		return voidFuture();
@@ -411,8 +411,24 @@ public abstract class BaseReactiveTest {
 		return factoryManager.getHibernateSessionFactory().unwrap( Mutiny.SessionFactory.class );
 	}
 
+	// TODO Not null annotations is temporal, need review
+	@org.jetbrains.annotations.NotNull
 	protected static Coroutines.SessionFactory getCoroutinesSessionFactory() {
 		return factoryManager.getHibernateSessionFactory().unwrap(Coroutines.SessionFactory.class);
+	}
+
+	@org.jetbrains.annotations.NotNull
+	protected CompletionStage<Coroutines.Session> openCoroutinesSession() {
+		return closeSession( session )
+				.thenCompose( v -> CoroutinesTestHelper.openSessionAsStage(getCoroutinesSessionFactory()) )
+				.thenApply( this::saveSession );
+	}
+
+	@org.jetbrains.annotations.NotNull
+	protected CompletionStage<Coroutines.StatelessSession> openCoroutinesStatelessSession() {
+		return closeSession( statelessSession )
+				.thenCompose( v -> CoroutinesTestHelper.openStatelessSessionAsStage(getCoroutinesSessionFactory()) )
+				.thenApply( this::saveStatelessSession );
 	}
 
 	private <T> T saveSession(T newSession) {

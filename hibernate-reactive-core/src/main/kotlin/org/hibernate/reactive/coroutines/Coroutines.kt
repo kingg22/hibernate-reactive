@@ -19,9 +19,7 @@ import jakarta.persistence.criteria.CriteriaQuery
 import jakarta.persistence.criteria.CriteriaUpdate
 import jakarta.persistence.metamodel.Attribute
 import jakarta.persistence.metamodel.Metamodel
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.future.await
-import kotlinx.coroutines.future.future
 import org.hibernate.Cache
 import org.hibernate.CacheMode
 import org.hibernate.Filter
@@ -44,8 +42,6 @@ import org.hibernate.reactive.common.Identifier
 import org.hibernate.reactive.common.ResultSetMapping
 import org.hibernate.reactive.session.impl.ReactiveQueryExecutorLookup
 import org.hibernate.stat.Statistics
-import java.util.concurrent.CompletionStage
-import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * An API for Hibernate Reactive where non-blocking operations are represented as suspend functions.
@@ -2241,12 +2237,6 @@ interface Coroutines {
     interface Closeable {
         @JvmSynthetic
         suspend fun close()
-
-        fun closeAsStage(): CompletionStage<Void?> =
-            CoroutineScope(EmptyCoroutineContext).future {
-                this@Closeable.close()
-                null
-            }
     }
 
     companion object {
