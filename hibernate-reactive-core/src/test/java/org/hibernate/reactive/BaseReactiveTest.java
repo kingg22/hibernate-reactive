@@ -21,6 +21,7 @@ import org.hibernate.query.sqm.mutation.internal.temptable.GlobalTemporaryTableS
 import org.hibernate.query.sqm.mutation.internal.temptable.PersistentTableStrategy;
 import org.hibernate.reactive.containers.DatabaseConfiguration;
 import org.hibernate.reactive.containers.DatabaseConfiguration.DBType;
+import org.hibernate.reactive.coroutines.Coroutines;
 import org.hibernate.reactive.mutiny.Mutiny;
 import org.hibernate.reactive.pool.ReactiveConnection;
 import org.hibernate.reactive.provider.ReactiveServiceRegistryBuilder;
@@ -329,6 +330,18 @@ public abstract class BaseReactiveTest {
 				return stage.close();
 			}
 		}
+		if ( closable instanceof Coroutines.Session) {
+			Coroutines.Session coroutines = (Coroutines.Session) closable;
+			if (coroutines.isOpen()) {
+				return coroutines.closeAsStage();
+			}
+		}
+		if ( closable instanceof Coroutines.StatelessSession) {
+			Coroutines.StatelessSession coroutines = (Coroutines.StatelessSession) closable;
+			if (coroutines.isOpen()) {
+				return coroutines.closeAsStage();
+			}
+		}
 		return voidFuture();
 	}
 
@@ -396,6 +409,10 @@ public abstract class BaseReactiveTest {
 
 	protected static Mutiny.SessionFactory getMutinySessionFactory() {
 		return factoryManager.getHibernateSessionFactory().unwrap( Mutiny.SessionFactory.class );
+	}
+
+	protected static Coroutines.SessionFactory getCoroutinesSessionFactory() {
+		return factoryManager.getHibernateSessionFactory().unwrap(Coroutines.SessionFactory.class);
 	}
 
 	private <T> T saveSession(T newSession) {

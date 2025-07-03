@@ -33,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class BatchingConnectionTest extends ReactiveSessionTest {
 
-	private static SqlStatementTracker sqlTracker;
+	protected static SqlStatementTracker sqlTracker;
 
 	@Override
 	protected Configuration constructConfiguration() {
