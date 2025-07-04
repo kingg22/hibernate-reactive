@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 plugins {
     id "org.jetbrains.kotlin.jvm" version "2.2.0"
@@ -175,17 +176,24 @@ tasks.register( "testAll", Test ) {
     dependsOn = dbs.collect( [] as HashSet ) { db -> "testDb${db}" }
 }
 
+// Import version from settings.gradle in root, all are defined as JavaLanguageVersion
 if (gradle.ext.javaToolchainEnabled) {
-    kotlin {
-        jvmToolchain {
-            // Import version from settings.gradle in root, all are defined as JavaLanguageVersion
-            languageVersion.set(gradle.ext.javaVersions.main.compiler)
+    // Need to align kotlin compiler to java compiler version for main and test source sets
+    tasks.named('compileKotlin', KotlinCompilationTask) {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.fromTarget(gradle.ext.javaVersions.main.release.toString()))
+        }
+    }
+    tasks.named('compileTestKotlin', KotlinCompilationTask) {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.fromTarget(gradle.ext.javaVersions.test.release.toString()))
         }
     }
 } else {
     kotlin {
         compilerOptions {
-            jvmTarget.set(JvmTarget.fromTarget(gradle.ext.javaVersions.test.compiler.toString()))
+            // Only set global compiler options because in root have the same version for main and test
+            jvmTarget.set(JvmTarget.fromTarget(gradle.ext.javaVersions.main.release.toString()))
         }
     }
 }
