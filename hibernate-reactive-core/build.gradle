@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     id "org.jetbrains.kotlin.jvm" version "2.2.0"
 }
@@ -176,14 +178,14 @@ tasks.register( "testAll", Test ) {
 if (gradle.ext.javaToolchainEnabled) {
     kotlin {
         jvmToolchain {
-            // Usamos el mismo compilador definido para main en la configuración global
+            // Import version from settings.gradle in root, all are defined as JavaLanguageVersion
             languageVersion.set(gradle.ext.javaVersions.main.compiler)
         }
     }
 } else {
-    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-        kotlinOptions {
-            jvmTarget = gradle.ext.javaVersions.main.release.toString()
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.fromTarget(gradle.ext.javaVersions.test.compiler.toString()))
         }
     }
 }
