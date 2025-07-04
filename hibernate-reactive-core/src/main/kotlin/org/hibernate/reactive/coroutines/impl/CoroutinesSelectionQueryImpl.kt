@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  * Copyright: Red Hat Inc. and Hibernate Authors
  */
-
 @file:Suppress("useless_cast")
 
 package org.hibernate.reactive.coroutines.impl

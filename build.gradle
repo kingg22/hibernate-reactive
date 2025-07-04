@@ -46,6 +46,11 @@ subprojects {
             trimTrailingWhitespace()
             endWithNewline()
         }
+        kotlin {
+            licenseHeaderFile rootProject.file('spotless.license.java')
+            trimTrailingWhitespace()
+            endWithNewline()
+        }
     }
 
     tasks.compileJava.dependsOn(spotlessApply)
