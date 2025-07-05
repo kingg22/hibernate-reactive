@@ -9,6 +9,7 @@ import jakarta.persistence.metamodel.Metamodel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
 import org.hibernate.Cache
 import org.hibernate.internal.SessionCreationOptions
@@ -77,6 +78,9 @@ class CoroutinesSessionFactoryImpl
                     .lookup(),
             )
 
+        @OptIn(RequireHibernateReactiveContext::class)
+        private val dispatcher = context?.asCoroutineDispatcher()
+
         // delegate and getters of properties
         override fun getUuid(): String? = delegate.uuid
 
@@ -94,10 +98,11 @@ class CoroutinesSessionFactoryImpl
         override fun getStatistics(): Statistics? = delegate.statistics
 
         @OptIn(RequireHibernateReactiveContext::class)
-        override suspend fun getCurrentSession(): Coroutines.Session? = context?.safeGet(contextKeyForSession)
+        override suspend fun getCurrentSession(): Coroutines.Session? = context?.safeGet(contextKeyForSession, dispatcher)
 
         @OptIn(RequireHibernateReactiveContext::class)
-        override suspend fun getCurrentStatelessSession(): Coroutines.StatelessSession? = context?.safeGet(contextKeyForStatelessSession)
+        override suspend fun getCurrentStatelessSession(): Coroutines.StatelessSession? =
+            context?.safeGet(contextKeyForStatelessSession, dispatcher)
 
         override fun close() = delegate.close()
 
@@ -115,15 +120,18 @@ class CoroutinesSessionFactoryImpl
             val options = options(tenantId, withTenant)
             val tenantIdentifier = if (withTenant) tenantId else options.tenantIdentifier
             return withContext(ioDispatcher) {
-                val reactiveConnection = connection(tenantIdentifier)
-                val session =
-                    create(reactiveConnection) {
-                        // THIS is core of problem, session impl save the associatedWorkThread and verify it,
-                        // coroutines don't guarantee the thread
-                        ReactiveSessionImpl(delegate, options, reactiveConnection)
-                    }
-                @OptIn(RequireHibernateReactiveContext::class) // Is safe pass as argument
-                CoroutinesSessionImpl(session, checkNotNull(context), this@CoroutinesSessionFactoryImpl)
+                // First change to io, after change to vertx thread, this prevents block when await
+                withHibernateContext(checkNotNull(dispatcher)) {
+                    val reactiveConnection = connection(tenantIdentifier)
+                    val session =
+                        create(reactiveConnection) {
+                            // THIS is core of problem, session impl save the associatedWorkThread and verify it,
+                            // coroutines don't guarantee the thread
+                            ReactiveSessionImpl(delegate, options, reactiveConnection)
+                        }
+                    @OptIn(RequireHibernateReactiveContext::class) // Is safe pass as argument
+                    CoroutinesSessionImpl(session, checkNotNull(context), this@CoroutinesSessionFactoryImpl, dispatcher)
+                }
             }
         }
 
@@ -140,88 +148,94 @@ class CoroutinesSessionFactoryImpl
             val options = options(tenantId, withTenant)
             val tenantIdentifier = if (withTenant) tenantId else options.tenantIdentifier
             return withContext(ioDispatcher) {
-                val reactiveConnection = connection(tenantIdentifier)
-                val session =
-                    create(reactiveConnection) {
-                        // May be converted a problem because is a task check the thread
-                        ReactiveStatelessSessionImpl(delegate, options, reactiveConnection)
-                    }
-                @OptIn(RequireHibernateReactiveContext::class) // Is safe pass as argument
-                CoroutinesStatelessSessionImpl(session, checkNotNull(context), this@CoroutinesSessionFactoryImpl)
+                withHibernateContext(checkNotNull(dispatcher)) {
+                    val reactiveConnection = connection(tenantIdentifier)
+                    val session =
+                        create(reactiveConnection) {
+                            // May be converted a problem because is a task check the thread
+                            ReactiveStatelessSessionImpl(delegate, options, reactiveConnection)
+                        }
+                    @OptIn(RequireHibernateReactiveContext::class) // Is safe pass as argument
+                    CoroutinesStatelessSessionImpl(session, checkNotNull(context), this@CoroutinesSessionFactoryImpl, dispatcher)
+                }
             }
         }
 
         // with session
-        override suspend fun <T> withSession(work: suspend (Coroutines.Session) -> T): T {
-            @OptIn(RequireHibernateReactiveContext::class)
-            val current = context?.safeGet(contextKeyForSession)
-            return withContext(ioDispatcher) {
-                if (current != null && current.isOpen()) {
-                    log.debug(REUSING_SESSION)
-                    // Resume the work in the hibernate context because
-                    // use of the reactive Session from a different Thread than the one which was used to open the reactive Session
-                    // See it on InternalStateAssertions.assertCurrentThreadMatches, used on ReactiveSessionImpl
-                    withActiveSession(current, work, contextKeyForSession)
-                } else {
-                    log.debug(OPENING_NEW_SESSION)
-                    // Force a nonnull context?
-                    withSession(openSession(), work, contextKeyForSession)
+        override suspend fun <T> withSession(work: suspend (Coroutines.Session) -> T): T =
+            withContext(ioDispatcher) {
+                withHibernateContext(checkNotNull(dispatcher)) {
+                    @OptIn(RequireHibernateReactiveContext::class)
+                    val current = context?.get(contextKeyForSession)
+                    if (current != null && current.isOpen()) {
+                        log.debug(REUSING_SESSION)
+                        // Resume the work in the hibernate context because
+                        // use of the reactive Session from a different Thread than the one which was used to open the reactive Session
+                        // See it on InternalStateAssertions.assertCurrentThreadMatches, used on ReactiveSessionImpl
+                        withActiveSession(current, work, contextKeyForSession)
+                    } else {
+                        log.debug(OPENING_NEW_SESSION)
+                        // Force a nonnull context?
+                        withSession(openSession(), work, contextKeyForSession)
+                    }
                 }
             }
-        }
 
         override suspend fun <T> withSession(
             tenantId: String,
             work: suspend (Coroutines.Session) -> T,
-        ): T {
-            val key: Context.Key<Coroutines.Session> = MultitenantKey(contextKeyForSession, tenantId)
+        ): T =
+            withContext(ioDispatcher) {
+                withHibernateContext(checkNotNull(dispatcher)) {
+                    val key: Context.Key<Coroutines.Session> = MultitenantKey(contextKeyForSession, tenantId)
 
-            @OptIn(RequireHibernateReactiveContext::class)
-            val current = context?.safeGet(key)
-            return withContext(ioDispatcher) {
-                if (current != null && current.isOpen()) {
-                    log.debugf(REUSING_TENANT_SESSION, tenantId)
-                    withActiveSession(current, work, key)
-                } else {
-                    log.debugf(OPENING_NEW_TENANT_SESSION, tenantId)
-                    withSession(openSession(tenantId), work, key)
+                    @OptIn(RequireHibernateReactiveContext::class)
+                    val current = context?.get(key)
+                    if (current != null && current.isOpen()) {
+                        log.debugf(REUSING_TENANT_SESSION, tenantId)
+                        withActiveSession(current, work, key)
+                    } else {
+                        log.debugf(OPENING_NEW_TENANT_SESSION, tenantId)
+                        withSession(openSession(tenantId), work, key)
+                    }
                 }
             }
-        }
 
         // with stateless
-        override suspend fun <T> withStatelessSession(work: suspend (Coroutines.StatelessSession) -> T): T {
-            @OptIn(RequireHibernateReactiveContext::class)
-            val current = context?.safeGet(contextKeyForStatelessSession)
-            return withContext(ioDispatcher) {
-                if (current != null && current.isOpen()) {
-                    log.debug(REUSING_STATELESS_SESSION)
-                    withActiveSession(current, work, contextKeyForStatelessSession)
-                } else {
-                    log.debug(OPENING_NEW_STATELESS_SESSION)
-                    withSession(openStatelessSession(), work, contextKeyForStatelessSession)
+        override suspend fun <T> withStatelessSession(work: suspend (Coroutines.StatelessSession) -> T): T =
+            withContext(ioDispatcher) {
+                withHibernateContext(checkNotNull(dispatcher)) {
+                    @OptIn(RequireHibernateReactiveContext::class)
+                    val current = context?.get(contextKeyForStatelessSession)
+                    if (current != null && current.isOpen()) {
+                        log.debug(REUSING_STATELESS_SESSION)
+                        withActiveSession(current, work, contextKeyForStatelessSession)
+                    } else {
+                        log.debug(OPENING_NEW_STATELESS_SESSION)
+                        withSession(openStatelessSession(), work, contextKeyForStatelessSession)
+                    }
                 }
             }
-        }
 
         override suspend fun <T> withStatelessSession(
             tenantId: String?,
             work: suspend (Coroutines.StatelessSession) -> T,
-        ): T {
-            val key: Context.Key<Coroutines.StatelessSession> = MultitenantKey(contextKeyForStatelessSession, tenantId)
+        ): T =
+            withContext(ioDispatcher) {
+                withHibernateContext(checkNotNull(dispatcher)) {
+                    val key: Context.Key<Coroutines.StatelessSession> = MultitenantKey(contextKeyForStatelessSession, tenantId)
 
-            @OptIn(RequireHibernateReactiveContext::class)
-            val current = context?.safeGet(key)
-            return withContext(ioDispatcher) {
-                if (current != null && current.isOpen()) {
-                    log.debugf(REUSING_TENANT_STATELESS_SESSION, tenantId)
-                    withActiveSession(current, work, key)
-                } else {
-                    log.debugf(OPENING_NEW_TENANT_STATELESS_SESSION, tenantId)
-                    withSession(openStatelessSession(tenantId), work, key)
+                    @OptIn(RequireHibernateReactiveContext::class)
+                    val current = context?.get(key)
+                    if (current != null && current.isOpen()) {
+                        log.debugf(REUSING_TENANT_STATELESS_SESSION, tenantId)
+                        withActiveSession(current, work, key)
+                    } else {
+                        log.debugf(OPENING_NEW_TENANT_STATELESS_SESSION, tenantId)
+                        withSession(openStatelessSession(tenantId), work, key)
+                    }
                 }
             }
-        }
 
         // private helpers
         private fun options(
@@ -239,14 +253,12 @@ class CoroutinesSessionFactoryImpl
         private suspend fun connection(tenantId: String?): ReactiveConnection {
             // force checkNotNull?
             // Workaround to await in different thread to prevent blocking the event loop
-            return withHibernateContext(checkNotNull(context)) {
-                assertUseOnEventLoop()
-                val pool = checkNotNull(connectionPool)
-                if (tenantId == null) {
-                    pool.getConnection()
-                } else {
-                    pool.getConnection(tenantId)
-                }
+            assertUseOnEventLoop()
+            val pool = checkNotNull(connectionPool)
+            return if (tenantId == null) {
+                pool.getConnection().safeAwait()
+            } else {
+                pool.getConnection(tenantId).safeAwait()
             }
         }
 
@@ -260,7 +272,7 @@ class CoroutinesSessionFactoryImpl
             }
             return try {
                 // ReactiveSessionImpl and ReactiveStatelessSessionImpl need to be called in event loop
-                withHibernateContext(checkNotNull(context), supplier)
+                withContext(checkNotNull(dispatcher)) { supplier() }
             } catch (e: Throwable) {
                 // This use NonCancellable job, don't change the dispatcher
                 // At 4 july 2025 is safe call this outside of hibernate context
@@ -281,8 +293,8 @@ class CoroutinesSessionFactoryImpl
                 callsInPlace(work, InvocationKind.EXACTLY_ONCE)
             }
             // Use hibernate context because operation with it may fail if No Vert.x context active
-            return withHibernateContext(checkNotNull(context)) {
-                context.put(contextKey, session)
+            return withContext(checkNotNull(dispatcher)) {
+                checkNotNull(context).put(contextKey, session)
                 withActiveSession(session, work, contextKey)
             }
         }
@@ -301,7 +313,9 @@ class CoroutinesSessionFactoryImpl
             contract {
                 callsInPlace(work, InvocationKind.EXACTLY_ONCE)
             }
-            return withHibernateContext(checkNotNull(context)) {
+            checkNotNull(context)
+            checkNotNull(context[contextKey])
+            return withHibernateContext(checkNotNull(dispatcher)) {
                 try {
                     work(session)
                 } finally {

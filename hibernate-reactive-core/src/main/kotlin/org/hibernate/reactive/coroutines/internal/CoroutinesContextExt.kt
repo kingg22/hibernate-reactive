@@ -6,7 +6,7 @@
 @file:OptIn(ExperimentalContracts::class, ExperimentalTypeInference::class)
 
 package org.hibernate.reactive.coroutines.internal
-
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -79,7 +79,8 @@ internal suspend inline fun <T> withHibernateContext(
     // Force coroutines context uses Vertx Context as Dispatcher
     // Don't create a new coroutine context because can change the thread and
     // hibernate forbidden execute in other thread included if the thread is in event loop
-    return if (coroutineContext[CoroutinesHibernateReactiveContext] != null) {
+    val flag = coroutineContext[CoroutinesHibernateReactiveContext]
+    return if (flag != null) {
         // TODO need check still safe or not
         try {
             block()
@@ -88,8 +89,9 @@ internal suspend inline fun <T> withHibernateContext(
             throw c.cause ?: c
         }
     } else {
+        val vertxDispatcher = context.asCoroutineDispatcher()
         withContext(
-            context.asCoroutineDispatcher() + CoroutinesHibernateReactiveContext() + CoroutineName("ReactiveHibernateContextAsDispatcher"),
+            vertxDispatcher + CoroutinesHibernateReactiveContext() + CoroutineName("ReactiveHibernateContextAsDispatcher"),
         ) {
             try {
                 block()
@@ -121,14 +123,45 @@ internal suspend inline fun <T> withHibernateContext(
     }
     // When use CompletionStage.get cause block the event loop if await in the same thread of completion stage complete
     // First, change to use vertx context as dispatcher
-    return if (coroutineContext[CoroutinesHibernateReactiveContext] != null) {
+    val flag = coroutineContext[CoroutinesHibernateReactiveContext]
+    return if (flag != null) {
         // TODO need check still safe or not
         safeAwait(block())
     } else {
+        val vertxDispatcher = context.asCoroutineDispatcher()
         withContext(
-            context.asCoroutineDispatcher() + CoroutinesHibernateReactiveContext() + CoroutineName("withReactiveHibernateContext"),
+            vertxDispatcher + CoroutinesHibernateReactiveContext() + CoroutineName("withReactiveHibernateContext"),
         ) {
             safeAwait(block())
+        }
+    }
+}
+
+@JvmSynthetic
+internal suspend inline fun <T> withHibernateContext(
+    dispatcher: CoroutineDispatcher,
+    crossinline block: () -> CompletionStage<T>,
+): T {
+    contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
+
+    return withContext(dispatcher + CoroutineName("HibernateReactiveSingleDispatcher")) {
+        safeAwait(block())
+    }
+}
+
+@JvmSynthetic
+@OverloadResolutionByLambdaReturnType
+internal suspend inline fun <T> withHibernateContext(
+    dispatcher: CoroutineDispatcher,
+    crossinline block: suspend () -> T,
+): T {
+    contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
+
+    return withContext(dispatcher + CoroutineName("HibernateReactiveSingleDispatcher")) {
+        try {
+            block()
+        } catch (c: java.util.concurrent.CompletionException) {
+            throw c.cause ?: c
         }
     }
 }
@@ -155,15 +188,12 @@ internal suspend inline fun <T> CompletionStage<T>.safeAwait(): T = safeAwait(th
 
 /** Perform the [Context.get] operator [withHibernateContext] */
 @JvmSynthetic
-internal suspend inline fun <T> Context.safeGet(key: Context.Key<T>): T? = withHibernateContext(this) { this[key] }
-
-/** Perform the [Context.put] operation [withHibernateContext] */
-@JvmSynthetic
-internal suspend inline operator fun <T> Context.set(
+internal suspend inline fun <T> Context.safeGet(
     key: Context.Key<T>,
-    instance: T,
-) = withHibernateContext(this) { put(key, instance) }
-
-/** Perform the [Context.remove] [withHibernateContext] */
-@JvmSynthetic
-internal suspend inline fun Context.safeRemove(key: Context.Key<*>) = withHibernateContext(this) { remove(key) }
+    dispatcher: CoroutineDispatcher?,
+): T? =
+    if (dispatcher != null) {
+        withHibernateContext(dispatcher) { this[key] }
+    } else {
+        withHibernateContext(this) { this[key] }
+    }

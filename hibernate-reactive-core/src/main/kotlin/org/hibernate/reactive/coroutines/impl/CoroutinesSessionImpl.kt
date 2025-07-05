@@ -12,6 +12,7 @@ import jakarta.persistence.criteria.CriteriaDelete
 import jakarta.persistence.criteria.CriteriaQuery
 import jakarta.persistence.criteria.CriteriaUpdate
 import jakarta.persistence.metamodel.Attribute
+import kotlinx.coroutines.CoroutineDispatcher
 import org.hibernate.CacheMode
 import org.hibernate.Filter
 import org.hibernate.FlushMode
@@ -38,6 +39,7 @@ class CoroutinesSessionImpl(
     private val delegate: ReactiveSession,
     private val context: Context,
     private val factory: CoroutinesSessionFactoryImpl,
+    val dispatcher: CoroutineDispatcher,
 ) : Coroutines.Session {
     // This need synchronized?
     private var currentTransaction: CoroutinesTransactionImpl<*>? = null
@@ -45,14 +47,14 @@ class CoroutinesSessionImpl(
     override suspend fun <T> find(
         entityClass: Class<T>,
         id: Any?,
-    ): T? = withHibernateContext(context) { delegate.reactiveFind(entityClass, id, null, null) }
+    ): T? = withHibernateContext(dispatcher) { delegate.reactiveFind(entityClass, id, null, null) }
 
     override suspend fun <T> find(
         entityClass: Class<T>,
         id: Any?,
         lockMode: LockMode?,
     ): T? =
-        withHibernateContext(context) {
+        withHibernateContext(dispatcher) {
             @Suppress("DEPRECATION", "removal")
             delegate.reactiveFind(entityClass, id, org.hibernate.LockOptions(lockMode), null)
         }
@@ -61,19 +63,19 @@ class CoroutinesSessionImpl(
         entityGraph: EntityGraph<T>,
         id: Any?,
     ): T? =
-        withHibernateContext(context) {
+        withHibernateContext(dispatcher) {
             delegate.reactiveFind((entityGraph as RootGraph<T>).graphedType.javaType, id, null, entityGraph)
         }
 
     override suspend fun <T> find(
         entityClass: Class<T>,
         vararg ids: Any?,
-    ): List<T?> = withHibernateContext(context) { delegate.reactiveFind(entityClass, *ids) }
+    ): List<T?> = withHibernateContext(dispatcher) { delegate.reactiveFind(entityClass, *ids) }
 
     override suspend fun <T> find(
         entityClass: Class<T>,
         naturalId: Identifier<T>,
-    ): T? = withHibernateContext(context) { delegate.reactiveFind(entityClass, naturalId.namedValues()) }
+    ): T? = withHibernateContext(dispatcher) { delegate.reactiveFind(entityClass, naturalId.namedValues()) }
 
     override fun <T> getReference(
         entityClass: Class<T?>?,
@@ -83,36 +85,36 @@ class CoroutinesSessionImpl(
     override fun <T> getReference(entity: T?): T? = delegate.getReference(delegate.getEntityClass(entity), delegate.getEntityId(entity))
 
     override suspend fun persist(instance: Any?) {
-        withHibernateContext(context) { delegate.reactivePersist(instance) }
+        withHibernateContext(dispatcher) { delegate.reactivePersist(instance) }
     }
 
     override suspend fun persist(
         entityName: String?,
         instance: Any?,
     ) {
-        withHibernateContext(context) { delegate.reactivePersist(entityName, instance) }
+        withHibernateContext(dispatcher) { delegate.reactivePersist(entityName, instance) }
     }
 
     override suspend fun persistAll(vararg entities: Any?) {
-        withHibernateContext(context) { applyToAll(delegate::reactivePersist, entities) }
+        withHibernateContext(dispatcher) { applyToAll(delegate::reactivePersist, entities) }
     }
 
     override suspend fun remove(entity: Any?) {
-        withHibernateContext(context) { delegate.reactiveRemove(entity) }
+        withHibernateContext(dispatcher) { delegate.reactiveRemove(entity) }
     }
 
     override suspend fun removeAll(vararg entities: Any?) {
-        withHibernateContext(context) { applyToAll(delegate::reactiveRemove, entities) }
+        withHibernateContext(dispatcher) { applyToAll(delegate::reactiveRemove, entities) }
     }
 
-    override suspend fun <T> merge(entity: T?): T? = withHibernateContext(context) { delegate.reactiveMerge(entity) }
+    override suspend fun <T> merge(entity: T?): T? = withHibernateContext(dispatcher) { delegate.reactiveMerge(entity) }
 
     override suspend fun mergeAll(vararg entities: Any?) {
-        withHibernateContext(context) { applyToAll(delegate::reactiveMerge, entities) }
+        withHibernateContext(dispatcher) { applyToAll(delegate::reactiveMerge, entities) }
     }
 
     override suspend fun refresh(entity: Any?) {
-        withHibernateContext(context) {
+        withHibernateContext(dispatcher) {
             @Suppress("DEPRECATION", "removal")
             delegate.reactiveRefresh(entity, org.hibernate.LockOptions.NONE)
         }
@@ -122,14 +124,14 @@ class CoroutinesSessionImpl(
         entity: Any?,
         lockMode: LockMode?,
     ) {
-        withHibernateContext(context) {
+        withHibernateContext(dispatcher) {
             @Suppress("DEPRECATION", "removal")
             delegate.reactiveRefresh(entity, org.hibernate.LockOptions(lockMode))
         }
     }
 
     override suspend fun refreshAll(vararg entities: Any?) {
-        withHibernateContext(context) {
+        withHibernateContext(dispatcher) {
             applyToAll({ e ->
                 @Suppress("DEPRECATION", "removal")
                 delegate.reactiveRefresh(e, org.hibernate.LockOptions.NONE)
@@ -141,27 +143,27 @@ class CoroutinesSessionImpl(
         entity: Any?,
         lockMode: LockMode?,
     ) {
-        withHibernateContext(context) {
+        withHibernateContext(dispatcher) {
             @Suppress("DEPRECATION", "removal")
             delegate.reactiveLock(entity, org.hibernate.LockOptions(lockMode))
         }
     }
 
     override suspend fun flush() {
-        withHibernateContext(context, delegate::reactiveFlush)
+        withHibernateContext(dispatcher, delegate::reactiveFlush)
     }
 
-    override suspend fun <T> fetch(association: T?): T? = withHibernateContext(context) { delegate.reactiveFetch(association, false) }
+    override suspend fun <T> fetch(association: T?): T? = withHibernateContext(dispatcher) { delegate.reactiveFetch(association, false) }
 
     override suspend fun <E, T> fetch(
         entity: E?,
         field: Attribute<E, T>,
-    ): T? = withHibernateContext(context) { delegate.reactiveFetch(entity, field) }
+    ): T? = withHibernateContext(dispatcher) { delegate.reactiveFetch(entity, field) }
 
-    override suspend fun <T> unproxy(association: T?): T? = withHibernateContext(context) { delegate.reactiveFetch(association, true) }
+    override suspend fun <T> unproxy(association: T?): T? = withHibernateContext(dispatcher) { delegate.reactiveFetch(association, true) }
 
     override suspend fun <T> withTransaction(work: suspend (Coroutines.Transaction) -> T): T =
-        withHibernateContext(context) {
+        withHibernateContext(dispatcher) {
             // apply context (dispatcher) in the root of the operation, all child coroutines have the correct dispatcher
             if (currentTransaction == null) {
                 CoroutinesTransactionImpl<T>()
@@ -172,7 +174,7 @@ class CoroutinesSessionImpl(
         }
 
     override suspend fun close() {
-        withHibernateContext(context, delegate::reactiveClose)
+        withHibernateContext(dispatcher, delegate::reactiveClose)
     }
 
     override fun currentTransaction(): Coroutines.Transaction? = currentTransaction
@@ -184,7 +186,7 @@ class CoroutinesSessionImpl(
     // Special function for test. We need to change to suspend because required event loop context
     @OptIn(RequireHibernateReactiveContext::class)
     @org.jetbrains.annotations.VisibleForTesting
-    suspend fun getReactiveConnection(): ReactiveConnection = withHibernateContext(context, delegate::getReactiveConnection)
+    suspend fun getReactiveConnection(): ReactiveConnection = withHibernateContext(dispatcher, delegate::getReactiveConnection)
 
     override fun getLockMode(entity: Any?): LockMode? = delegate.getCurrentLockMode(entity)
 
@@ -435,8 +437,10 @@ class CoroutinesSessionImpl(
             }
             return try {
                 val result = work(this)
+                // only flush() if the work completed with no exception
                 flush()
                 beforeCompletion()
+                // finally, when there was no exception, commit or rollback the transaction
                 if (rollback) {
                     rollback()
                 } else {
@@ -445,6 +449,7 @@ class CoroutinesSessionImpl(
                 afterCompletion()
                 result
             } catch (e: Throwable) {
+                // in the case of an exception or cancellation, we need to roll back the transaction
                 rollback()
                 afterCompletion()
                 throw e

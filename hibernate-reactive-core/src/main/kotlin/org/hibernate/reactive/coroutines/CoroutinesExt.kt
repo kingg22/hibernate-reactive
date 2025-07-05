@@ -6,7 +6,11 @@
 package org.hibernate.reactive.coroutines
 
 import jakarta.persistence.LockModeType
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.withContext
 import org.hibernate.LockMode
+import org.hibernate.reactive.coroutines.impl.CoroutinesSessionImpl
+import org.hibernate.reactive.coroutines.impl.CoroutinesStatelessSessionImpl
 
 inline fun <reified T> Coroutines.QueryProducer.createSelectionQuery(queryString: String) = createSelectionQuery(queryString, T::class.java)
 
@@ -37,3 +41,21 @@ suspend inline fun <reified T> Coroutines.StatelessSession.get(vararg ids: Any?)
 
 // -- Iterable overloads --
 suspend inline fun <reified T> Coroutines.Session.find(ids: Iterable<Any>) = find(T::class.java, *ids.toList().toTypedArray())
+
+/**
+ * Run all the [block] in Hibernate Reactive Context and thread of the session.
+ *
+ * **Important**: The thread can be blocked, you need to ensure change the dispatcher [withContext] and back to this scope.
+ */
+@JvmSynthetic
+suspend fun <T> Coroutines.Session.hibernateScope(block: suspend CoroutineScope.() -> T): T =
+    withContext((this as CoroutinesSessionImpl).dispatcher, block)
+
+/**
+ * Run all the [block] in Hibernate Reactive Context and thread of the session.
+ *
+ * **Important**: The thread can be blocked, you need to ensure change the dispatcher [withContext] and back to this scope.
+ */
+@JvmSynthetic
+suspend fun <T> Coroutines.StatelessSession.hibernateScope(block: suspend CoroutineScope.() -> T): T =
+    withContext((this as CoroutinesStatelessSessionImpl).dispatcher, block)
