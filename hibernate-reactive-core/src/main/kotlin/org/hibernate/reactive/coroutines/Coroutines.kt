@@ -466,7 +466,7 @@ interface Coroutines {
         @Deprecated(
             "See explanation in [org.hibernate.query.QueryProducer.createSelectionQuery(string)]",
             ReplaceWith("createSelectionQuery(queryString, resultType)"),
-            DeprecationLevel.WARNING,
+            DeprecationLevel.HIDDEN,
         )
         fun <R> createQuery(queryString: String?): Query<R>
 
@@ -1153,7 +1153,7 @@ interface Coroutines {
         fun getLockMode(entity: Any?): LockMode?
 
         /** Determine if the given instance belongs to this persistence context. */
-        fun contains(entity: Any?): Boolean
+        operator fun contains(entity: Any?): Boolean
 
         /**
          * Set the [flush mode][FlushMode] for this session.
@@ -1271,7 +1271,7 @@ interface Coroutines {
          * @see org.hibernate.Session.setReadOnly
          */
         fun setReadOnly(
-            entityOrProxy: Any?,
+            entityOrProxy: Any,
             readOnly: Boolean,
         ): Session
 
@@ -1280,7 +1280,7 @@ interface Coroutines {
          *
          * @see org.hibernate.Session.isReadOnly
          */
-        fun isReadOnly(entityOrProxy: Any?): Boolean
+        fun isReadOnly(entityOrProxy: Any): Boolean
 
         /**
          * Set the [cache mode][CacheMode] for this session.

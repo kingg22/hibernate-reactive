@@ -6,7 +6,6 @@
 package org.hibernate.reactive.coroutines.impl
 
 import jakarta.persistence.Parameter
-import kotlinx.coroutines.future.await
 import org.hibernate.reactive.context.Context
 import org.hibernate.reactive.coroutines.Coroutines
 import org.hibernate.reactive.coroutines.internal.withHibernateContext
@@ -16,10 +15,7 @@ class CoroutinesMutationQueryImpl<R>(
     private val delegate: ReactiveMutationQuery<R>,
     private val context: Context,
 ) : Coroutines.MutationQuery {
-    override suspend fun executeUpdate(): Int =
-        withHibernateContext(context) {
-            delegate.executeReactiveUpdate().await()
-        }
+    override suspend fun executeUpdate(): Int = withHibernateContext(context, delegate::executeReactiveUpdate)
 
     override fun setParameter(
         parameter: Int,

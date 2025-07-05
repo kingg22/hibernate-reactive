@@ -11,7 +11,6 @@ import jakarta.persistence.criteria.CriteriaBuilder
 import jakarta.persistence.criteria.CriteriaDelete
 import jakarta.persistence.criteria.CriteriaQuery
 import jakarta.persistence.criteria.CriteriaUpdate
-import kotlinx.coroutines.future.await
 import org.hibernate.LockMode
 import org.hibernate.graph.RootGraph
 import org.hibernate.query.criteria.JpaCriteriaInsert
@@ -19,9 +18,12 @@ import org.hibernate.reactive.common.AffectedEntities
 import org.hibernate.reactive.common.ResultSetMapping
 import org.hibernate.reactive.context.Context
 import org.hibernate.reactive.coroutines.Coroutines
+import org.hibernate.reactive.coroutines.internal.RequireHibernateReactiveContext
+import org.hibernate.reactive.coroutines.internal.safeAwait
 import org.hibernate.reactive.coroutines.internal.withHibernateContext
 import org.hibernate.reactive.pool.ReactiveConnection
 import org.hibernate.reactive.session.ReactiveStatelessSession
+import org.jetbrains.annotations.VisibleForTesting
 import java.util.concurrent.CompletableFuture
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
@@ -32,176 +34,134 @@ class CoroutinesStatelessSessionImpl(
     private val context: Context,
     private val factory: CoroutinesSessionFactoryImpl,
 ) : Coroutines.StatelessSession {
+    // This need synchronized?
     private var currentTransaction: CoroutinesStatelessTransaction<*>? = null
 
     override suspend fun <T> get(
         entityClass: Class<T>,
         id: Any?,
-    ): T? =
-        withHibernateContext(context) {
-            delegate.reactiveGet(entityClass, id).await()
-        }
+    ): T? = withHibernateContext(context) { delegate.reactiveGet(entityClass, id) }
 
     override suspend fun <T> get(
         entityClass: Class<T>,
         vararg ids: Any,
-    ): List<T?> =
-        withHibernateContext(context) {
-            delegate.reactiveGet(entityClass, *ids).await()
-        }
+    ): List<T?> = withHibernateContext(context) { delegate.reactiveGet(entityClass, *ids) }
 
     override suspend fun <T> get(
         entityClass: Class<T>,
         id: Any,
         lockMode: LockMode,
-    ): T? =
-        withHibernateContext(context) {
-            delegate.reactiveGet(entityClass, id, lockMode, null).await()
-        }
+    ): T? = withHibernateContext(context) { delegate.reactiveGet(entityClass, id, lockMode, null) }
 
     override suspend fun <T> get(
         entityGraph: EntityGraph<T>,
         id: Any,
     ): T? =
         withHibernateContext(context) {
-            delegate.reactiveGet((entityGraph as RootGraph<T>).graphedType.javaType, id, null, entityGraph).await()
+            delegate.reactiveGet((entityGraph as RootGraph<T>).graphedType.javaType, id, null, entityGraph)
         }
 
     override suspend fun insert(entity: Any?) {
-        withHibernateContext(context) {
-            delegate.reactiveInsert(entity).await()
-        }
+        withHibernateContext(context) { delegate.reactiveInsert(entity) }
     }
 
     override suspend fun insertAll(vararg entities: Any?) {
-        withHibernateContext(context) {
-            delegate.reactiveInsertAll(entities.size, *entities).await()
-        }
+        withHibernateContext(context) { delegate.reactiveInsertAll(entities.size, *entities) }
     }
 
     override suspend fun insertAll(
         batchSize: Int,
         vararg entities: Any,
     ) {
-        withHibernateContext(context) {
-            delegate.reactiveInsertAll(batchSize, *entities).await()
-        }
+        withHibernateContext(context) { delegate.reactiveInsertAll(batchSize, *entities) }
     }
 
     override suspend fun insertMultiple(entities: List<*>) = insertAll(entities.toTypedArray())
 
     override suspend fun delete(entity: Any) {
-        withHibernateContext(context) {
-            delegate.reactiveDelete(entity).await()
-        }
+        withHibernateContext(context) { delegate.reactiveDelete(entity) }
     }
 
     override suspend fun deleteAll(vararg entities: Any?) {
-        withHibernateContext(context) {
-            delegate.reactiveDeleteAll(entities.size, entities).await()
-        }
+        withHibernateContext(context) { delegate.reactiveDeleteAll(entities.size, *entities) }
     }
 
     override suspend fun deleteAll(
         batchSize: Int,
         vararg entities: Any?,
     ) {
-        withHibernateContext(context) {
-            delegate.reactiveDeleteAll(batchSize, entities).await()
-        }
+        withHibernateContext(context) { delegate.reactiveDeleteAll(batchSize, *entities) }
     }
 
-    override suspend fun deleteMultiple(entities: List<*>) = deleteAll(entities.toTypedArray())
+    override suspend fun deleteMultiple(entities: List<*>) = deleteAll(*entities.toTypedArray())
 
     override suspend fun update(entity: Any?) {
-        withHibernateContext(context) {
-            delegate.reactiveUpdate(entity).await()
-        }
+        withHibernateContext(context) { delegate.reactiveUpdate(entity) }
     }
 
     override suspend fun updateAll(vararg entities: Any?) {
-        withHibernateContext(context) {
-            delegate.reactiveUpdateAll(entities.size, entities).await()
-        }
+        withHibernateContext(context) { delegate.reactiveUpdateAll(entities.size, *entities) }
     }
 
     override suspend fun updateAll(
         batchSize: Int,
         vararg entities: Any?,
     ) {
-        withHibernateContext(context) {
-            delegate.reactiveUpdateAll(batchSize, entities).await()
-        }
+        withHibernateContext(context) { delegate.reactiveUpdateAll(batchSize, *entities) }
     }
 
-    override suspend fun updateMultiple(entities: List<*>) = updateAll(entities.toTypedArray())
+    override suspend fun updateMultiple(entities: List<*>) = updateAll(*entities.toTypedArray())
 
     override suspend fun upsert(entity: Any?) {
-        withHibernateContext(context) {
-            delegate.reactiveUpsert(entity).await()
-        }
+        withHibernateContext(context) { delegate.reactiveUpsert(entity) }
     }
 
     override suspend fun upsertAll(vararg entities: Any?) {
-        withHibernateContext(context) {
-            delegate.reactiveUpsertAll(entities.size, entities).await()
-        }
+        withHibernateContext(context) { delegate.reactiveUpsertAll(entities.size, *entities) }
     }
 
     override suspend fun upsertAll(
         batchSize: Int,
         vararg entities: Any?,
     ) {
-        withHibernateContext(context) {
-            delegate.reactiveUpsertAll(batchSize, entities).await()
-        }
+        withHibernateContext(context) { delegate.reactiveUpsertAll(batchSize, *entities) }
     }
 
-    override suspend fun upsertMultiple(entities: List<*>) = upsertAll(entities.toTypedArray())
+    override suspend fun upsertMultiple(entities: List<*>) = upsertAll(*entities.toTypedArray())
 
     override suspend fun refresh(entity: Any?) {
-        withHibernateContext(context) {
-            delegate.reactiveRefresh(entity).await()
-        }
+        withHibernateContext(context) { delegate.reactiveRefresh(entity) }
     }
 
     override suspend fun refreshAll(vararg entities: Any?) {
-        withHibernateContext(context) {
-            delegate.reactiveRefreshAll(entities.size, entities).await()
-        }
+        withHibernateContext(context) { delegate.reactiveRefreshAll(entities.size, *entities) }
     }
 
     override suspend fun refreshAll(
         batchSize: Int,
         vararg entities: Any?,
     ) {
-        withHibernateContext(context) {
-            delegate.reactiveRefreshAll(batchSize, entities).await()
-        }
+        withHibernateContext(context) { delegate.reactiveRefreshAll(batchSize, *entities) }
     }
 
-    override suspend fun refreshMultiple(entities: List<*>) = refreshAll(entities.toTypedArray())
+    override suspend fun refreshMultiple(entities: List<*>) = refreshAll(*entities.toTypedArray())
 
     override suspend fun refresh(
         entity: Any?,
         lockMode: LockMode?,
     ) {
-        withHibernateContext(context) {
-            delegate.reactiveRefresh(entity, lockMode).await()
-        }
+        withHibernateContext(context) { delegate.reactiveRefresh(entity, lockMode) }
     }
 
-    override suspend fun <T> fetch(association: T?): T? =
-        withHibernateContext(context) {
-            delegate.reactiveFetch(association, false).await()
-        }
+    override suspend fun <T> fetch(association: T?): T? = withHibernateContext(context) { delegate.reactiveFetch(association, false) }
 
     override fun getIdentifier(entity: Any?): Any? = delegate.getIdentifier(entity)
 
     override suspend fun <T> withTransaction(work: suspend (Coroutines.Transaction) -> T): T =
         withHibernateContext(context) {
             if (currentTransaction == null) {
-                CoroutinesStatelessTransaction<T>().execute(work)
+                CoroutinesStatelessTransaction<T>()
+                    .execute(work)
             } else {
                 work(currentTransaction!!)
             }
@@ -211,7 +171,7 @@ class CoroutinesStatelessSessionImpl(
         withHibernateContext(context) {
             val closing = CompletableFuture<Void>()
             delegate.close(closing)
-            closing.await()
+            closing
         }
     }
 
@@ -327,7 +287,9 @@ class CoroutinesStatelessSessionImpl(
     override fun getCriteriaBuilder(): CriteriaBuilder = getFactory().getCriteriaBuilder()
 
     // Need the correct event loop context
-    suspend fun getReactiveConnection(): ReactiveConnection = withHibernateContext(context) { delegate.reactiveConnection }
+    @OptIn(RequireHibernateReactiveContext::class)
+    @VisibleForTesting
+    suspend fun getReactiveConnection(): ReactiveConnection = withHibernateContext(context, delegate::getReactiveConnection)
 
     @OptIn(ExperimentalContracts::class)
     private inner class CoroutinesStatelessTransaction<T> : Coroutines.Transaction {
@@ -340,13 +302,17 @@ class CoroutinesStatelessSessionImpl(
         override fun isMarkedForRollback(): Boolean = rollback
 
         suspend fun execute(work: suspend (Coroutines.Transaction) -> T): T {
+            @Suppress("WRONG_INVOCATION_KIND")
             contract {
                 callsInPlace(work, InvocationKind.EXACTLY_ONCE)
             }
             return try {
                 currentTransaction = this
-                begin()
-                executeInTransaction(work)
+                // Run operation on event loop, expect if await is need, use safeAwait and not block it
+                withHibernateContext(context) {
+                    begin()
+                    executeInTransaction(work)
+                }
             } finally {
                 currentTransaction = null
             }
@@ -371,15 +337,15 @@ class CoroutinesStatelessSessionImpl(
         }
 
         suspend fun begin() {
-            delegate.reactiveConnection.beginTransaction().await()
+            safeAwait(delegate.reactiveConnection.beginTransaction())
         }
 
         suspend fun rollback() {
-            delegate.reactiveConnection.rollbackTransaction().await()
+            safeAwait(delegate.reactiveConnection.rollbackTransaction())
         }
 
         suspend fun commit() {
-            delegate.reactiveConnection.commitTransaction().await()
+            safeAwait(delegate.reactiveConnection.commitTransaction())
         }
     }
 }

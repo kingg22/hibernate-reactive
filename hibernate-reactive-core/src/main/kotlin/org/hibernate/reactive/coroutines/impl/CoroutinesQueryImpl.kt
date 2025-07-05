@@ -3,17 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  * Copyright: Red Hat Inc. and Hibernate Authors
  */
-@file:Suppress("useless_cast")
-
 package org.hibernate.reactive.coroutines.impl
 
 import jakarta.persistence.CacheRetrieveMode
 import jakarta.persistence.CacheStoreMode
 import jakarta.persistence.EntityGraph
-import jakarta.persistence.FlushModeType
-import jakarta.persistence.LockModeType
 import jakarta.persistence.Parameter
-import kotlinx.coroutines.future.await
 import org.hibernate.CacheMode
 import org.hibernate.FlushMode
 import org.hibernate.LockMode
@@ -31,12 +26,12 @@ class CoroutinesQueryImpl<R>(
 ) : Coroutines.Query<R> {
     override fun setFlushMode(flushMode: FlushMode?): Coroutines.Query<R> =
         apply {
-            delegate.flushMode = flushMode as FlushModeType?
+            delegate.hibernateFlushMode = flushMode
         }
 
     override fun setLockMode(lockMode: LockMode?): Coroutines.Query<R> =
         apply {
-            delegate.lockMode = lockMode as LockModeType?
+            delegate.hibernateLockMode = lockMode
         }
 
     override fun setLockMode(
@@ -67,25 +62,13 @@ class CoroutinesQueryImpl<R>(
 
     override fun getFirstResult(): Int = delegate.firstResult
 
-    override suspend fun getSingleResult(): R =
-        withHibernateContext(context) {
-            delegate.reactiveSingleResult.await()
-        }
+    override suspend fun getSingleResult(): R = withHibernateContext(context, delegate::getReactiveSingleResult)
 
-    override suspend fun getSingleResultOrNull(): R? =
-        withHibernateContext(context) {
-            delegate.reactiveSingleResultOrNull.await()
-        }
+    override suspend fun getSingleResultOrNull(): R? = withHibernateContext(context, delegate::getReactiveSingleResultOrNull)
 
-    override suspend fun getResultCount(): Long? =
-        withHibernateContext(context) {
-            delegate.reactiveResultCount.await()
-        }
+    override suspend fun getResultCount(): Long? = withHibernateContext(context, delegate::getReactiveResultCount)
 
-    override suspend fun getResultList(): List<R> =
-        withHibernateContext(context) {
-            delegate.reactiveResultList.await()
-        }
+    override suspend fun getResultList(): List<R> = withHibernateContext(context, delegate::getReactiveResultList)
 
     override fun setReadOnly(readOnly: Boolean): Coroutines.Query<R> =
         apply {
@@ -120,7 +103,7 @@ class CoroutinesQueryImpl<R>(
     override fun getCacheMode(): CacheMode? = delegate.cacheMode
 
     @Suppress("DEPRECATION")
-    override fun getFlushMode(): FlushMode? = delegate.flushMode as FlushMode?
+    override fun getFlushMode(): FlushMode? = delegate.hibernateFlushMode
 
     override fun setPlan(entityGraph: EntityGraph<R>?): Coroutines.Query<R> =
         apply {
@@ -163,8 +146,5 @@ class CoroutinesQueryImpl<R>(
 
     override fun getComment(): String? = delegate.comment
 
-    override suspend fun executeUpdate(): Int =
-        withHibernateContext(context) {
-            delegate.executeReactiveUpdate().await()
-        }
+    override suspend fun executeUpdate(): Int = withHibernateContext(context, delegate::executeReactiveUpdate)
 }

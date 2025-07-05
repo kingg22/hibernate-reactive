@@ -3,19 +3,26 @@
  * SPDX-License-Identifier: Apache-2.0
  * Copyright: Red Hat Inc. and Hibernate Authors
  */
+@file:OptIn(ExperimentalContracts::class, ExperimentalTypeInference::class)
+
 package org.hibernate.reactive.coroutines.internal
 
 import kotlinx.coroutines.CoroutineName
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withContext
 import org.hibernate.reactive.context.Context
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionStage
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 import kotlin.coroutines.coroutineContext
+import kotlin.experimental.ExperimentalTypeInference
 
 /**
- * Run the block in the [Context] this avoids problems with nested [withContext].
+ * Run the block in the [Hibernate Context '_event loop_'][Context]
  *
  * Example problematic code:
  * ```kotlin
@@ -50,31 +57,91 @@ import kotlin.coroutines.coroutineContext
  *     ): T? =
  *         // Change the coroutine context again with context of vertx
  *         withContext(context.asCoroutineDispatcher()) {
+ *             // await in the same thread of reactiveFind and it can't never complete.
  *             delegate.reactiveFind(entityClass, id, null, null).await()
  *         }
  * ```
- * TLDR: change the [kotlin.coroutines.CoroutineContext] 2 times or more in nested code block the event loop of
- * [Vertx][Context].
+ * TLDR: await in the same thread of [CompletionStage.complete][CompletableFuture.complete] block the [event loop][Context].
+ * @param context the Hibernate context
+ * @param block operation to execute and need the context
+ * @see <a href="https://kotlinlang.org/docs/coroutine-context-and-dispatchers.html#dispatchers-and-threads">Read more about coroutines and dispatchers</a>
  */
 @JvmSynthetic
-@OptIn(ExperimentalContracts::class)
-internal suspend fun <T> withHibernateContext(
+@OverloadResolutionByLambdaReturnType
+internal suspend inline fun <T> withHibernateContext(
     context: Context,
-    block: suspend () -> T,
+    crossinline block: suspend () -> T,
 ): T {
     contract {
         callsInPlace(block, InvocationKind.EXACTLY_ONCE)
     }
-    // When use CompletionStage.get cause block the event loop if the thread's full
-    // Need other context (thread) to await the result of Stage
 
-    // Check the mark of reactive context (vertx)
+    // Force coroutines context uses Vertx Context as Dispatcher
+    // Don't create a new coroutine context because can change the thread and
+    // hibernate forbidden execute in other thread included if the thread is in event loop
     return if (coroutineContext[CoroutinesHibernateReactiveContext] != null) {
-        block()
-    } else {
-        // Force nested context uses Vertx Context and adds the mark
-        withContext(context.asCoroutineDispatcher() + CoroutinesHibernateReactiveContext() + CoroutineName("withHibernateContext")) {
+        try {
             block()
+        } catch (c: java.util.concurrent.CompletionException) {
+            // Rethrow the original cause unwrap of CompletionException
+            throw c.cause ?: c
+        }
+    } else {
+        withContext(
+            context.asCoroutineDispatcher() + CoroutinesHibernateReactiveContext() + CoroutineName("ReactiveHibernateContextAsDispatcher"),
+        ) {
+            try {
+                block()
+            } catch (c: java.util.concurrent.CompletionException) {
+                // Rethrow the original cause unwrap of CompletionException
+                throw c.cause ?: c
+            }
         }
     }
 }
+
+/**
+ * When use [CompletionStage.get][java.util.concurrent.CompletableFuture.get] cause block the event loop.
+ * Or await in the same thread of [CompletionStage.complete][CompletableFuture.complete], complete never success and await indefinitely.
+ *
+ * Need other context (thread) to await the result of Stage (e.g. [Dispatchers.IO])
+ * @param context The Hibernate Context to run the work
+ * @param block The work in [CompletionStage] API.
+ * @see safeAwait
+ * @see withHibernateContext
+ */
+@JvmSynthetic
+internal suspend inline fun <T> withHibernateContext(
+    context: Context,
+    crossinline block: () -> CompletionStage<T>,
+): T {
+    contract {
+        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+    }
+    // When use CompletionStage.get cause block the event loop if await in the same thread of completion stage complete
+    // First, change to use vertx context as dispatcher
+    return if (coroutineContext[CoroutinesHibernateReactiveContext] != null) {
+        safeAwait(block())
+    } else {
+        withContext(
+            context.asCoroutineDispatcher() + CoroutinesHibernateReactiveContext() + CoroutineName("withReactiveHibernateContext"),
+        ) {
+            safeAwait(block())
+        }
+    }
+}
+
+/**
+ * Unwrap the [java.util.concurrent.CompletionException] if occurs.
+ * @param stage Work to await
+ */
+@JvmSynthetic
+internal suspend inline fun <T> safeAwait(stage: CompletionStage<T>): T =
+    withContext(CoroutineName("safeAwait")) {
+        try {
+            stage.await()
+        } catch (c: java.util.concurrent.CompletionException) {
+            // Rethrow the original cause unwrap of CompletionException
+            throw c.cause ?: c
+        }
+    }
