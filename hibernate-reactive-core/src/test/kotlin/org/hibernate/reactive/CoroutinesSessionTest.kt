@@ -31,10 +31,13 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.lang.Exception
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.minutes
 import org.assertj.core.api.Assertions as AssertjAssertions
 
 // Use GuineaPig of MutinySessionTest because if kotlin class want to have a JPA entity, need more dependencies like plugin jpa
 class CoroutinesSessionTest : BaseReactiveTest() {
+    private val timeout = 10.minutes
+
     override fun annotatedEntities(): Collection<Class<*>> = listOf(GuineaPig::class.java)
 
     private suspend fun populateDB() =
@@ -69,7 +72,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun reactiveFindMultipleIds(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             val rump = GuineaPig(55, "Rumpelstiltskin")
             val emma = GuineaPig(77, "Emma")
             test(context) {
@@ -86,7 +89,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun sessionClear(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             val guineaPig = GuineaPig(81, "Perry")
             test(context) {
                 getCoroutinesSessionFactory().withSession { session ->
@@ -104,7 +107,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun reactiveWithTransactionStatelessSession(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             val guineaPig = GuineaPig(61, "Mr. Peanutbutter")
             test(context) {
                 getCoroutinesSessionFactory().withStatelessTransaction { session ->
@@ -120,7 +123,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun reactiveWithTransactionSession(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             val guineaPig = GuineaPig(61, "Mr. Peanutbutter")
             test(context) {
                 // Use DSL syntax
@@ -132,7 +135,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun reactiveFind(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             val expectedPig = GuineaPig(5, "Aloi")
             test(context) {
                 populateDB()
@@ -151,7 +154,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun reactiveFindWithLock(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             val expectedPig = GuineaPig(5, "Aloi")
             test(context) {
                 populateDB()
@@ -165,7 +168,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun reactiveFindRefreshWithLock(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             val expectedPig = GuineaPig(5, "Aloi")
             test(context) {
                 populateDB()
@@ -180,7 +183,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun reactiveFindReadOnlyRefreshWithLock(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             val expectedPig = GuineaPig(5, "Aloi")
             test(context) {
                 populateDB()
@@ -209,7 +212,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun reactiveFindThenUpgradeLock(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             val expectedPig = GuineaPig(5, "Aloi")
             test(context) {
                 populateDB()
@@ -224,7 +227,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun reactiveFindThenWriteLock(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             val expectedPig = GuineaPig(5, "Aloi")
             test(context) {
                 populateDB()
@@ -239,7 +242,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun reactivePersist(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             test(context) {
                 getCoroutinesSessionFactory().session {
                     persist(GuineaPig(10, "Tulip"))
@@ -252,7 +255,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun reactivePersistInTx(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             test(context) {
                 getCoroutinesSessionFactory().transaction { persist(GuineaPig(10, "Tulip")) }
                 val selectRes = selectNameFromId(10)
@@ -262,7 +265,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun reactiveRollbackTx(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             test(context) {
                 assertThrows<Exception> {
                     getCoroutinesSessionFactory().transaction {
@@ -279,7 +282,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun reactiveMarkedRollbackTx(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             test(context) {
                 getCoroutinesSessionFactory().transaction { t ->
                     persist(GuineaPig(10, "Tulip"))
@@ -292,7 +295,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun reactiveRemoveTransientEntity(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             test(context) {
                 populateDB()
                 assertNotNull(selectNameFromId(5))
@@ -309,7 +312,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun reactiveRemoveManagedEntity(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             test(context) {
                 populateDB()
                 getCoroutinesSessionFactory().session {
@@ -323,7 +326,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun reactiveRemoveManagedEntityWithTx(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             test(context) {
                 populateDB()
                 getCoroutinesSessionFactory().transaction {
@@ -336,7 +339,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun reactiveUpdate(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             val newName = "Tina"
             test(context) {
                 populateDB()
@@ -358,7 +361,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
             "Mutiny have the same problem, but idk mutiny GuineaPig don't have version property",
     )
     fun reactiveUpdateVersion(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             val newName = "Tina"
             test(context) {
                 populateDB()
@@ -377,7 +380,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun reactiveQueryWithLock(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             val expectedPig = GuineaPig(5, "Aloi")
             test(context) {
                 populateDB()
@@ -394,7 +397,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun reactiveQueryWithAliasedLock(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             val expectedPig = GuineaPig(5, "Aloi")
             test(context) {
                 populateDB()
@@ -411,7 +414,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun reactiveMultiQuery(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             val foo = GuineaPig(5, "Foo")
             val bar = GuineaPig(6, "Bar")
             val baz = GuineaPig(7, "Baz")
@@ -434,7 +437,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun reactiveClose(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             test(context) {
                 val session = getCoroutinesSessionFactory().openSession()
                 assertTrue(session.isOpen())
@@ -445,7 +448,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun testFactory(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             test(context) {
                 getCoroutinesSessionFactory().session {
                     // Mutiny side doesn't handle null of properties, is not null?
@@ -468,7 +471,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun testTransactionPropagation(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             test(context) {
                 getCoroutinesSessionFactory().transaction {
                     createSelectionQuery<GuineaPig>("from GuineaPig").getResultList()
@@ -492,7 +495,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
     @Test
     @Disabled("need debug for nested propagation")
     fun testSessionPropagation(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             test(context) {
                 getCoroutinesSessionFactory().session {
                     assertFalse(isDefaultReadOnly())
@@ -508,7 +511,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun testDupeException(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             test(context) {
                 getCoroutinesSessionFactory().transaction { persist(GuineaPig(10, "Tulip")) }
                 assertThrows<PersistenceException> {
@@ -519,7 +522,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun testExceptionInWithSession(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             var savedSession: Coroutines.Session? = null
             test(context) {
                 assertThrows<Exception> {
@@ -535,7 +538,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun testExceptionInWithTransaction(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             test(context) {
                 var savedSession: Coroutines.Session? = null
                 assertThrows<Exception> {
@@ -552,7 +555,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun testExceptionInWithStatelessSession(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             test(context) {
                 var savedSession: Coroutines.StatelessSession? = null
                 assertThrows<Exception> {
@@ -569,7 +572,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
 
     @Test
     fun testForceFlushWithDelete(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             val pig1 = GuineaPig(111, "Pig 1")
             val pig2 = GuineaPig(111, "Pig 2")
 
@@ -592,7 +595,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
     @Test
     @Disabled("need debug for nested session")
     fun testCurrentSession(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             test(context) {
                 getCoroutinesSessionFactory().withSession { session ->
                     getCoroutinesSessionFactory().withSession { s ->
@@ -612,7 +615,7 @@ class CoroutinesSessionTest : BaseReactiveTest() {
     @Test
     @Disabled("The problem is how context is getting outside context thread")
     fun testCurrentStatelessSession(context: VertxTestContext) =
-        runTest {
+        runTest(timeout = timeout) {
             test(context) {
                 getCoroutinesSessionFactory().withStatelessSession { session ->
                     getCoroutinesSessionFactory().withStatelessSession { s ->
