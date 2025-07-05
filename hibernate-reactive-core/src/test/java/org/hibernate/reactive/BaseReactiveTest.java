@@ -414,20 +414,20 @@ public abstract class BaseReactiveTest {
 	// TODO Not null annotations is temporal, need review
 	@org.jetbrains.annotations.NotNull
 	protected static Coroutines.SessionFactory getCoroutinesSessionFactory() {
-		return factoryManager.getHibernateSessionFactory().unwrap(Coroutines.SessionFactory.class);
+		return factoryManager.getHibernateSessionFactory().unwrap( Coroutines.SessionFactory.class );
 	}
 
 	@org.jetbrains.annotations.NotNull
-	protected CompletionStage<Coroutines.Session> openCoroutinesSession() {
+	protected CompletionStage<Coroutines.@org.jetbrains.annotations.NotNull Session> openCoroutinesSession() {
 		return closeSession( session )
-				.thenCompose( v -> CoroutinesTestHelper.openSessionAsStage(getCoroutinesSessionFactory()) )
+				.thenCompose( v -> CoroutinesTestHelper.openSessionAsStage( getCoroutinesSessionFactory() ) )
 				.thenApply( this::saveSession );
 	}
 
 	@org.jetbrains.annotations.NotNull
-	protected CompletionStage<Coroutines.StatelessSession> openCoroutinesStatelessSession() {
+	protected CompletionStage<Coroutines.@org.jetbrains.annotations.NotNull StatelessSession> openCoroutinesStatelessSession() {
 		return closeSession( statelessSession )
-				.thenCompose( v -> CoroutinesTestHelper.openStatelessSessionAsStage(getCoroutinesSessionFactory()) )
+				.thenCompose( v -> CoroutinesTestHelper.openStatelessSessionAsStage( getCoroutinesSessionFactory() ) )
 				.thenApply( this::saveStatelessSession );
 	}
 

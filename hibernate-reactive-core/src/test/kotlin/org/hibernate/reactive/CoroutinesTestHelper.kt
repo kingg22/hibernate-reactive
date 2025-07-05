@@ -7,9 +7,7 @@ package org.hibernate.reactive
 
 import io.vertx.junit5.VertxTestContext
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.future.future
-import kotlinx.coroutines.withContext
 import org.hibernate.reactive.coroutines.Coroutines
 import org.hibernate.reactive.coroutines.Coroutines.Session
 import org.hibernate.reactive.coroutines.Coroutines.StatelessSession
@@ -28,10 +26,7 @@ internal object CoroutinesTestHelper {
         work: suspend () -> Unit,
     ) {
         try {
-            // TODO when coroutines impl internal change the context and not blocking the event loop, this need to remove
-            withContext(Dispatchers.IO) {
-                work()
-            }
+            work()
             context.completeNow()
         } catch (e: Throwable) {
             context.failNow(e)
