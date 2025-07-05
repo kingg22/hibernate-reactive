@@ -80,6 +80,7 @@ internal suspend inline fun <T> withHibernateContext(
     // Don't create a new coroutine context because can change the thread and
     // hibernate forbidden execute in other thread included if the thread is in event loop
     return if (coroutineContext[CoroutinesHibernateReactiveContext] != null) {
+        // TODO need check still safe or not
         try {
             block()
         } catch (c: java.util.concurrent.CompletionException) {
@@ -121,6 +122,7 @@ internal suspend inline fun <T> withHibernateContext(
     // When use CompletionStage.get cause block the event loop if await in the same thread of completion stage complete
     // First, change to use vertx context as dispatcher
     return if (coroutineContext[CoroutinesHibernateReactiveContext] != null) {
+        // TODO need check still safe or not
         safeAwait(block())
     } else {
         withContext(
@@ -145,3 +147,23 @@ internal suspend inline fun <T> safeAwait(stage: CompletionStage<T>): T =
             throw c.cause ?: c
         }
     }
+
+/** Unwrap the [java.util.concurrent.CompletionException] if occurs. */
+@JvmSynthetic
+@JvmName("awaitSafe")
+internal suspend inline fun <T> CompletionStage<T>.safeAwait(): T = safeAwait(this)
+
+/** Perform the [Context.get] operator [withHibernateContext] */
+@JvmSynthetic
+internal suspend inline fun <T> Context.safeGet(key: Context.Key<T>): T? = withHibernateContext(this) { this[key] }
+
+/** Perform the [Context.put] operation [withHibernateContext] */
+@JvmSynthetic
+internal suspend inline operator fun <T> Context.set(
+    key: Context.Key<T>,
+    instance: T,
+) = withHibernateContext(this) { put(key, instance) }
+
+/** Perform the [Context.remove] [withHibernateContext] */
+@JvmSynthetic
+internal suspend inline fun Context.safeRemove(key: Context.Key<*>) = withHibernateContext(this) { remove(key) }

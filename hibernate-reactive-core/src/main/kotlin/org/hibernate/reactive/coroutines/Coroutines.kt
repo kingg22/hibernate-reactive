@@ -18,7 +18,6 @@ import jakarta.persistence.criteria.CriteriaQuery
 import jakarta.persistence.criteria.CriteriaUpdate
 import jakarta.persistence.metamodel.Attribute
 import jakarta.persistence.metamodel.Metamodel
-import kotlinx.coroutines.future.await
 import org.hibernate.Cache
 import org.hibernate.CacheMode
 import org.hibernate.Filter
@@ -39,6 +38,7 @@ import org.hibernate.query.criteria.JpaCriteriaInsert
 import org.hibernate.reactive.common.AffectedEntities
 import org.hibernate.reactive.common.Identifier
 import org.hibernate.reactive.common.ResultSetMapping
+import org.hibernate.reactive.coroutines.internal.safeAwait
 import org.hibernate.reactive.session.impl.ReactiveQueryExecutorLookup
 import org.hibernate.stat.Statistics
 
@@ -140,7 +140,11 @@ interface Coroutines {
          * @since 2.1
          */
         @Incubating
-        fun setPage(page: Page): SelectionQuery<R>
+        fun setPage(page: Page): SelectionQuery<R> =
+            apply {
+                setFirstResult(page.firstResult)
+                setMaxResults(page.maxResults)
+            }
 
         /** @return the maximum number results, or [Integer.MAX_VALUE] if not set */
         fun getMaxResults(): Int
@@ -1592,7 +1596,7 @@ interface Coroutines {
          * @see org.hibernate.StatelessSession.insert
          */
         @JvmSynthetic
-        suspend fun insertMultiple(entities: List<*>)
+        suspend fun insertMultiple(entities: List<*>) = insertAll(*entities.toTypedArray())
 
         /**
          * Delete a row.
@@ -1681,7 +1685,7 @@ interface Coroutines {
          * @see org.hibernate.StatelessSession.update
          */
         @JvmSynthetic
-        suspend fun updateMultiple(entities: List<*>)
+        suspend fun updateMultiple(entities: List<*>) = updateAll(*entities.toTypedArray())
 
         /**
          * Use a SQL `merge into` statement to perform an upsert.
@@ -1734,7 +1738,7 @@ interface Coroutines {
          */
         @Incubating
         @JvmSynthetic
-        suspend fun upsertMultiple(entities: List<*>)
+        suspend fun upsertMultiple(entities: List<*>) = upsertAll(*entities.toTypedArray())
 
         /**
          * Refresh the entity instance state from the database.
@@ -1781,7 +1785,7 @@ interface Coroutines {
          * @see org.hibernate.StatelessSession.refresh
          */
         @JvmSynthetic
-        suspend fun refreshMultiple(entities: List<*>)
+        suspend fun refreshMultiple(entities: List<*>) = refreshAll(*entities.toTypedArray())
 
         /**
          * Refresh the entity instance state from the database.
@@ -2032,7 +2036,8 @@ interface Coroutines {
          * @see Coroutines.Session.withTransaction
          */
         @JvmSynthetic
-        suspend fun <T> withTransaction(work: suspend (Session, Transaction) -> T): T
+        suspend fun <T> withTransaction(work: suspend (Session, Transaction) -> T): T =
+            withSession { s -> s.withTransaction { t -> work(s, t) } }
 
         /**
          * Perform work using a [reactive session][Session]
@@ -2095,7 +2100,8 @@ interface Coroutines {
          * @see Coroutines.SessionFactory.withTransaction
          */
         @JvmSynthetic
-        suspend fun <T> withStatelessTransaction(work: suspend (StatelessSession, Transaction) -> T): T
+        suspend fun <T> withStatelessTransaction(work: suspend (StatelessSession, Transaction) -> T): T =
+            withStatelessSession { s -> s.withTransaction { t -> work(s, t) } }
 
         /**
          * Perform work using a [stateless session][StatelessSession].
@@ -2159,7 +2165,7 @@ interface Coroutines {
         suspend fun <T> withTransaction(
             tenantId: String,
             work: suspend (Session, Transaction) -> T,
-        ): T
+        ): T = withSession(tenantId) { s -> s.withTransaction { t -> work(s, t) } }
 
         /**
          * Perform work using a [reactive session][StatelessSession]
@@ -2186,7 +2192,7 @@ interface Coroutines {
         suspend fun <T> withStatelessTransaction(
             tenantId: String?,
             work: suspend (StatelessSession, Transaction) -> T,
-        ): T
+        ): T = withStatelessSession(tenantId) { s -> s.withTransaction { t -> work(s, t) } }
 
         /** @return an instance of [CriteriaBuilder] for creating criteria queries. */
         fun getCriteriaBuilder(): HibernateCriteriaBuilder
@@ -2210,7 +2216,7 @@ interface Coroutines {
          *
          * @since 3.0
          */
-        fun getCurrentSession(): Session?
+        suspend fun getCurrentSession(): Session?
 
         /**
          * Return the current instance of [Session], if any.
@@ -2223,7 +2229,7 @@ interface Coroutines {
          *
          * @since 3.0
          */
-        fun getCurrentStatelessSession(): StatelessSession?
+        suspend fun getCurrentStatelessSession(): StatelessSession?
 
         /** Destroy the session factory and clean up its connection pool. */
         override fun close()
@@ -2279,8 +2285,11 @@ interface Coroutines {
                     return association
                 }
             }
-            // Is safe to call without change the coroutine context?
-            return ReactiveQueryExecutorLookup.extract(session).reactiveFetch(association, false).await()
+            // Is safe to call without change the coroutine context? No! This may fail
+            return ReactiveQueryExecutorLookup
+                .extract(session)
+                .reactiveFetch(association, false)
+                .safeAwait()
         }
     }
 }

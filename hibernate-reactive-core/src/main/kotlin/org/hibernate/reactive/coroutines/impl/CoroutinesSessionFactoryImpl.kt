@@ -22,6 +22,7 @@ import org.hibernate.reactive.context.impl.MultitenantKey
 import org.hibernate.reactive.coroutines.Coroutines
 import org.hibernate.reactive.coroutines.internal.RequireHibernateReactiveContext
 import org.hibernate.reactive.coroutines.internal.safeAwait
+import org.hibernate.reactive.coroutines.internal.safeGet
 import org.hibernate.reactive.coroutines.internal.withHibernateContext
 import org.hibernate.reactive.logging.impl.Log
 import org.hibernate.reactive.logging.impl.LoggerFactory
@@ -81,6 +82,7 @@ class CoroutinesSessionFactoryImpl
 
         override fun getServiceRegistry(): ServiceRegistry? = delegate.serviceRegistry
 
+        @RequireHibernateReactiveContext
         override fun getContext(): Context? = context
 
         override fun getCriteriaBuilder(): HibernateCriteriaBuilder = delegate.criteriaBuilder
@@ -91,9 +93,11 @@ class CoroutinesSessionFactoryImpl
 
         override fun getStatistics(): Statistics? = delegate.statistics
 
-        override fun getCurrentSession(): Coroutines.Session? = context?.get(contextKeyForSession)
+        @OptIn(RequireHibernateReactiveContext::class)
+        override suspend fun getCurrentSession(): Coroutines.Session? = context?.safeGet(contextKeyForSession)
 
-        override fun getCurrentStatelessSession(): Coroutines.StatelessSession? = context?.get(contextKeyForStatelessSession)
+        @OptIn(RequireHibernateReactiveContext::class)
+        override suspend fun getCurrentStatelessSession(): Coroutines.StatelessSession? = context?.safeGet(contextKeyForStatelessSession)
 
         override fun close() = delegate.close()
 
@@ -118,6 +122,7 @@ class CoroutinesSessionFactoryImpl
                         // coroutines don't guarantee the thread
                         ReactiveSessionImpl(delegate, options, reactiveConnection)
                     }
+                @OptIn(RequireHibernateReactiveContext::class) // Is safe pass as argument
                 CoroutinesSessionImpl(session, checkNotNull(context), this@CoroutinesSessionFactoryImpl)
             }
         }
@@ -138,15 +143,18 @@ class CoroutinesSessionFactoryImpl
                 val reactiveConnection = connection(tenantIdentifier)
                 val session =
                     create(reactiveConnection) {
+                        // May be converted a problem because is a task check the thread
                         ReactiveStatelessSessionImpl(delegate, options, reactiveConnection)
                     }
+                @OptIn(RequireHibernateReactiveContext::class) // Is safe pass as argument
                 CoroutinesStatelessSessionImpl(session, checkNotNull(context), this@CoroutinesSessionFactoryImpl)
             }
         }
 
         // with session
         override suspend fun <T> withSession(work: suspend (Coroutines.Session) -> T): T {
-            val current = context?.get(contextKeyForSession)
+            @OptIn(RequireHibernateReactiveContext::class)
+            val current = context?.safeGet(contextKeyForSession)
             return withContext(ioDispatcher) {
                 if (current != null && current.isOpen()) {
                     log.debug(REUSING_SESSION)
@@ -167,7 +175,9 @@ class CoroutinesSessionFactoryImpl
             work: suspend (Coroutines.Session) -> T,
         ): T {
             val key: Context.Key<Coroutines.Session> = MultitenantKey(contextKeyForSession, tenantId)
-            val current = context?.get(key)
+
+            @OptIn(RequireHibernateReactiveContext::class)
+            val current = context?.safeGet(key)
             return withContext(ioDispatcher) {
                 if (current != null && current.isOpen()) {
                     log.debugf(REUSING_TENANT_SESSION, tenantId)
@@ -181,7 +191,8 @@ class CoroutinesSessionFactoryImpl
 
         // with stateless
         override suspend fun <T> withStatelessSession(work: suspend (Coroutines.StatelessSession) -> T): T {
-            val current = context?.get(contextKeyForStatelessSession)
+            @OptIn(RequireHibernateReactiveContext::class)
+            val current = context?.safeGet(contextKeyForStatelessSession)
             return withContext(ioDispatcher) {
                 if (current != null && current.isOpen()) {
                     log.debug(REUSING_STATELESS_SESSION)
@@ -198,7 +209,9 @@ class CoroutinesSessionFactoryImpl
             work: suspend (Coroutines.StatelessSession) -> T,
         ): T {
             val key: Context.Key<Coroutines.StatelessSession> = MultitenantKey(contextKeyForStatelessSession, tenantId)
-            val current = context?.get(key)
+
+            @OptIn(RequireHibernateReactiveContext::class)
+            val current = context?.safeGet(key)
             return withContext(ioDispatcher) {
                 if (current != null && current.isOpen()) {
                     log.debugf(REUSING_TENANT_STATELESS_SESSION, tenantId)
@@ -209,24 +222,6 @@ class CoroutinesSessionFactoryImpl
                 }
             }
         }
-
-        // transaction methods
-        override suspend fun <T> withTransaction(work: suspend (Coroutines.Session, Coroutines.Transaction) -> T): T =
-            withSession { s -> s.withTransaction { t -> work(s, t) } }
-
-        override suspend fun <T> withTransaction(
-            tenantId: String,
-            work: suspend (Coroutines.Session, Coroutines.Transaction) -> T,
-        ): T = withSession(tenantId) { s -> s.withTransaction { t -> work(s, t) } }
-
-        // stateless transaction
-        override suspend fun <T> withStatelessTransaction(work: suspend (Coroutines.StatelessSession, Coroutines.Transaction) -> T): T =
-            withStatelessSession { s -> s.withTransaction { t -> work(s, t) } }
-
-        override suspend fun <T> withStatelessTransaction(
-            tenantId: String?,
-            work: suspend (Coroutines.StatelessSession, Coroutines.Transaction) -> T,
-        ): T = withStatelessSession(tenantId) { s -> s.withTransaction { t -> work(s, t) } }
 
         // private helpers
         private fun options(
@@ -240,6 +235,7 @@ class CoroutinesSessionFactoryImpl
                 }
             }
 
+        @OptIn(RequireHibernateReactiveContext::class)
         private suspend fun connection(tenantId: String?): ReactiveConnection {
             // force checkNotNull?
             // Workaround to await in different thread to prevent blocking the event loop
@@ -254,6 +250,7 @@ class CoroutinesSessionFactoryImpl
             }
         }
 
+        @OptIn(RequireHibernateReactiveContext::class)
         private suspend fun <S> create(
             connection: ReactiveConnection,
             supplier: () -> S,
@@ -267,12 +264,13 @@ class CoroutinesSessionFactoryImpl
             } catch (e: Throwable) {
                 // This use NonCancellable job, don't change the dispatcher
                 // At 4 july 2025 is safe call this outside of hibernate context
-                withContext(NonCancellable) { safeAwait(connection.close()) }
+                withContext(NonCancellable) { connection.close().safeAwait() }
                 throw e
             }
         }
 
         /** Put in context the session and delegate the rest to [withActiveSession] */
+        @OptIn(RequireHibernateReactiveContext::class)
         private suspend fun <S : Coroutines.Closeable, T> withSession(
             session: S,
             work: suspend (S) -> T,
@@ -293,6 +291,7 @@ class CoroutinesSessionFactoryImpl
          * Prevent resource leak and blocking the event loop with an active session.
          * This method doesn't put in the context the key, only remove it.
          */
+        @OptIn(RequireHibernateReactiveContext::class)
         private suspend fun <S : Coroutines.Closeable, T> withActiveSession(
             session: S,
             work: suspend (S) -> T,

@@ -23,7 +23,6 @@ import org.hibernate.reactive.coroutines.internal.safeAwait
 import org.hibernate.reactive.coroutines.internal.withHibernateContext
 import org.hibernate.reactive.pool.ReactiveConnection
 import org.hibernate.reactive.session.ReactiveStatelessSession
-import org.jetbrains.annotations.VisibleForTesting
 import java.util.concurrent.CompletableFuture
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
@@ -76,8 +75,6 @@ class CoroutinesStatelessSessionImpl(
         withHibernateContext(context) { delegate.reactiveInsertAll(batchSize, *entities) }
     }
 
-    override suspend fun insertMultiple(entities: List<*>) = insertAll(entities.toTypedArray())
-
     override suspend fun delete(entity: Any) {
         withHibernateContext(context) { delegate.reactiveDelete(entity) }
     }
@@ -110,8 +107,6 @@ class CoroutinesStatelessSessionImpl(
         withHibernateContext(context) { delegate.reactiveUpdateAll(batchSize, *entities) }
     }
 
-    override suspend fun updateMultiple(entities: List<*>) = updateAll(*entities.toTypedArray())
-
     override suspend fun upsert(entity: Any?) {
         withHibernateContext(context) { delegate.reactiveUpsert(entity) }
     }
@@ -127,8 +122,6 @@ class CoroutinesStatelessSessionImpl(
         withHibernateContext(context) { delegate.reactiveUpsertAll(batchSize, *entities) }
     }
 
-    override suspend fun upsertMultiple(entities: List<*>) = upsertAll(*entities.toTypedArray())
-
     override suspend fun refresh(entity: Any?) {
         withHibernateContext(context) { delegate.reactiveRefresh(entity) }
     }
@@ -143,8 +136,6 @@ class CoroutinesStatelessSessionImpl(
     ) {
         withHibernateContext(context) { delegate.reactiveRefreshAll(batchSize, *entities) }
     }
-
-    override suspend fun refreshMultiple(entities: List<*>) = refreshAll(*entities.toTypedArray())
 
     override suspend fun refresh(
         entity: Any?,
@@ -175,11 +166,8 @@ class CoroutinesStatelessSessionImpl(
         }
     }
 
-    override fun currentTransaction(): Coroutines.Transaction? = currentTransaction
-
-    override fun getFactory(): Coroutines.SessionFactory = factory
-
     // -- Query --
+    // TODO WARNING: all of delegate.createX check open and need withHibernateContext
     override fun <R> createQuery(typedQueryReference: TypedQueryReference<R>): Coroutines.Query<R> =
         CoroutinesQueryImpl(delegate.createReactiveQuery(typedQueryReference), context)
 
@@ -286,9 +274,13 @@ class CoroutinesStatelessSessionImpl(
 
     override fun getCriteriaBuilder(): CriteriaBuilder = getFactory().getCriteriaBuilder()
 
+    override fun currentTransaction(): Coroutines.Transaction? = currentTransaction
+
+    override fun getFactory(): Coroutines.SessionFactory = factory
+
     // Need the correct event loop context
     @OptIn(RequireHibernateReactiveContext::class)
-    @VisibleForTesting
+    @org.jetbrains.annotations.VisibleForTesting
     suspend fun getReactiveConnection(): ReactiveConnection = withHibernateContext(context, delegate::getReactiveConnection)
 
     @OptIn(ExperimentalContracts::class)
@@ -337,15 +329,15 @@ class CoroutinesStatelessSessionImpl(
         }
 
         suspend fun begin() {
-            safeAwait(delegate.reactiveConnection.beginTransaction())
+            delegate.reactiveConnection.beginTransaction().safeAwait()
         }
 
         suspend fun rollback() {
-            safeAwait(delegate.reactiveConnection.rollbackTransaction())
+            delegate.reactiveConnection.rollbackTransaction().safeAwait()
         }
 
         suspend fun commit() {
-            safeAwait(delegate.reactiveConnection.commitTransaction())
+            delegate.reactiveConnection.commitTransaction().safeAwait()
         }
     }
 }

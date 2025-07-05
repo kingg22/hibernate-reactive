@@ -12,12 +12,10 @@ import jakarta.persistence.criteria.CriteriaDelete
 import jakarta.persistence.criteria.CriteriaQuery
 import jakarta.persistence.criteria.CriteriaUpdate
 import jakarta.persistence.metamodel.Attribute
-import kotlinx.coroutines.future.await
 import org.hibernate.CacheMode
 import org.hibernate.Filter
 import org.hibernate.FlushMode
 import org.hibernate.LockMode
-import org.hibernate.LockOptions
 import org.hibernate.graph.RootGraph
 import org.hibernate.query.criteria.JpaCriteriaInsert
 import org.hibernate.reactive.common.AffectedEntities
@@ -26,11 +24,11 @@ import org.hibernate.reactive.common.ResultSetMapping
 import org.hibernate.reactive.context.Context
 import org.hibernate.reactive.coroutines.Coroutines
 import org.hibernate.reactive.coroutines.internal.RequireHibernateReactiveContext
+import org.hibernate.reactive.coroutines.internal.safeAwait
 import org.hibernate.reactive.coroutines.internal.withHibernateContext
 import org.hibernate.reactive.pool.ReactiveConnection
 import org.hibernate.reactive.session.ReactiveSession
 import org.hibernate.reactive.util.impl.CompletionStages.applyToAll
-import org.jetbrains.annotations.VisibleForTesting
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -56,7 +54,7 @@ class CoroutinesSessionImpl(
     ): T? =
         withHibernateContext(context) {
             @Suppress("DEPRECATION", "removal")
-            delegate.reactiveFind(entityClass, id, LockOptions(lockMode), null)
+            delegate.reactiveFind(entityClass, id, org.hibernate.LockOptions(lockMode), null)
         }
 
     override suspend fun <T> find(
@@ -116,7 +114,7 @@ class CoroutinesSessionImpl(
     override suspend fun refresh(entity: Any?) {
         withHibernateContext(context) {
             @Suppress("DEPRECATION", "removal")
-            delegate.reactiveRefresh(entity, LockOptions.NONE)
+            delegate.reactiveRefresh(entity, org.hibernate.LockOptions.NONE)
         }
     }
 
@@ -126,7 +124,7 @@ class CoroutinesSessionImpl(
     ) {
         withHibernateContext(context) {
             @Suppress("DEPRECATION", "removal")
-            delegate.reactiveRefresh(entity, LockOptions(lockMode))
+            delegate.reactiveRefresh(entity, org.hibernate.LockOptions(lockMode))
         }
     }
 
@@ -134,7 +132,7 @@ class CoroutinesSessionImpl(
         withHibernateContext(context) {
             applyToAll({ e ->
                 @Suppress("DEPRECATION", "removal")
-                delegate.reactiveRefresh(e, LockOptions.NONE)
+                delegate.reactiveRefresh(e, org.hibernate.LockOptions.NONE)
             }, entities)
         }
     }
@@ -145,7 +143,7 @@ class CoroutinesSessionImpl(
     ) {
         withHibernateContext(context) {
             @Suppress("DEPRECATION", "removal")
-            delegate.reactiveLock(entity, LockOptions(lockMode))
+            delegate.reactiveLock(entity, org.hibernate.LockOptions(lockMode))
         }
     }
 
@@ -185,7 +183,7 @@ class CoroutinesSessionImpl(
 
     // Special function for test. We need to change to suspend because required event loop context
     @OptIn(RequireHibernateReactiveContext::class)
-    @VisibleForTesting
+    @org.jetbrains.annotations.VisibleForTesting
     suspend fun getReactiveConnection(): ReactiveConnection = withHibernateContext(context, delegate::getReactiveConnection)
 
     override fun getLockMode(entity: Any?): LockMode? = delegate.getCurrentLockMode(entity)
@@ -290,6 +288,7 @@ class CoroutinesSessionImpl(
     override fun isOpen(): Boolean = delegate.isOpen
 
     // -- Query --
+    // TODO WARNING: all of delegate.createX check open and need withHibernateContext
     override fun <R> createQuery(typedQueryReference: TypedQueryReference<R>): Coroutines.Query<R> =
         CoroutinesQueryImpl(delegate.createReactiveQuery(typedQueryReference), context)
 
@@ -453,27 +452,27 @@ class CoroutinesSessionImpl(
         }
 
         private suspend fun flush() {
-            delegate.reactiveAutoflush().await()
+            delegate.reactiveAutoflush().safeAwait()
         }
 
         private suspend fun begin() {
-            delegate.reactiveConnection.beginTransaction().await()
+            delegate.reactiveConnection.beginTransaction().safeAwait()
         }
 
         private suspend fun rollback() {
-            delegate.reactiveConnection.rollbackTransaction().await()
+            delegate.reactiveConnection.rollbackTransaction().safeAwait()
         }
 
         private suspend fun commit() {
-            delegate.reactiveConnection.commitTransaction().await()
+            delegate.reactiveConnection.commitTransaction().safeAwait()
         }
 
         private suspend fun beforeCompletion() {
-            delegate.reactiveActionQueue.beforeTransactionCompletion().await()
+            delegate.reactiveActionQueue.beforeTransactionCompletion().safeAwait()
         }
 
         private suspend fun afterCompletion() {
-            delegate.reactiveActionQueue.afterTransactionCompletion(!rollback).await()
+            delegate.reactiveActionQueue.afterTransactionCompletion(!rollback).safeAwait()
         }
     }
 }

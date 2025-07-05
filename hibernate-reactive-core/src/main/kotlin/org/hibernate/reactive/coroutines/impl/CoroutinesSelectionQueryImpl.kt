@@ -14,7 +14,6 @@ import org.hibernate.FlushMode
 import org.hibernate.LockMode
 import org.hibernate.graph.GraphSemantic
 import org.hibernate.graph.spi.RootGraphImplementor
-import org.hibernate.query.Page
 import org.hibernate.reactive.context.Context
 import org.hibernate.reactive.coroutines.Coroutines
 import org.hibernate.reactive.coroutines.internal.withHibernateContext
@@ -50,12 +49,6 @@ class CoroutinesSelectionQueryImpl<R>(
     override fun setFirstResult(firstResult: Int): Coroutines.SelectionQuery<R> =
         apply {
             delegate.firstResult = firstResult
-        }
-
-    override fun setPage(page: Page): Coroutines.SelectionQuery<R> =
-        apply {
-            setFirstResult(page.firstResult)
-            setMaxResults(page.maxResults)
         }
 
     override fun getMaxResults(): Int = delegate.maxResults
