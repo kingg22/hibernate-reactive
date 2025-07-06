@@ -6,6 +6,7 @@
 @file:OptIn(ExperimentalContracts::class, ExperimentalTypeInference::class)
 
 package org.hibernate.reactive.coroutines.internal
+
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
@@ -104,51 +105,13 @@ internal suspend inline fun <T> withHibernateContext(
 }
 
 /**
- * When use [CompletionStage.get][java.util.concurrent.CompletableFuture.get] cause block the event loop.
- * Or await in the same thread of [CompletionStage.complete][CompletableFuture.complete], complete never success and await indefinitely.
+ * Run the block in the [Context '_event loop_'][Context]
  *
- * Need other context (thread) to await the result of Stage (e.g. [Dispatchers.IO])
- * @param context The Hibernate Context to run the work
- * @param block The work in [CompletionStage] API.
- * @see safeAwait
- * @see withHibernateContext
+ * Provide the unwrap of [java.util.concurrent.CompletionException] equals to [safeAwait].
+ * @param dispatcher the specific dispatcher to execute the work
+ * @param block operation to execute and need the specific coroutine context provide by the dispatcher
+ * @see <a href="https://kotlinlang.org/docs/coroutine-context-and-dispatchers.html#dispatchers-and-threads">Read more about coroutines and dispatchers</a>
  */
-@JvmSynthetic
-internal suspend inline fun <T> withHibernateContext(
-    context: Context,
-    crossinline block: () -> CompletionStage<T>,
-): T {
-    contract {
-        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
-    }
-    // When use CompletionStage.get cause block the event loop if await in the same thread of completion stage complete
-    // First, change to use vertx context as dispatcher
-    val flag = coroutineContext[CoroutinesHibernateReactiveContext]
-    return if (flag != null) {
-        // TODO need check still safe or not
-        safeAwait(block())
-    } else {
-        val vertxDispatcher = context.asCoroutineDispatcher()
-        withContext(
-            vertxDispatcher + CoroutinesHibernateReactiveContext() + CoroutineName("withReactiveHibernateContext"),
-        ) {
-            safeAwait(block())
-        }
-    }
-}
-
-@JvmSynthetic
-internal suspend inline fun <T> withHibernateContext(
-    dispatcher: CoroutineDispatcher,
-    crossinline block: () -> CompletionStage<T>,
-): T {
-    contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
-
-    return withContext(dispatcher + CoroutineName("HibernateReactiveSingleDispatcher")) {
-        safeAwait(block())
-    }
-}
-
 @JvmSynthetic
 @OverloadResolutionByLambdaReturnType
 internal suspend inline fun <T> withHibernateContext(
@@ -163,6 +126,27 @@ internal suspend inline fun <T> withHibernateContext(
         } catch (c: java.util.concurrent.CompletionException) {
             throw c.cause ?: c
         }
+    }
+}
+
+/**
+ * When use [CompletionStage.get][java.util.concurrent.CompletableFuture.get] cause block the event loop.
+ * Or await in the same thread of [CompletionStage.complete][CompletableFuture.complete], complete never success and await indefinitely.
+ *
+ * Need other context (thread) to await the result of Stage (e.g. [Dispatchers.IO])
+ * @param context The Hibernate Context to run the work
+ * @param block The work in [CompletionStage] API.
+ * @see safeAwait
+ */
+@JvmSynthetic
+internal suspend inline fun <T> withHibernateContext(
+    dispatcher: CoroutineDispatcher,
+    crossinline block: () -> CompletionStage<T>,
+): T {
+    contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
+
+    return withContext(dispatcher + CoroutineName("HibernateReactiveSingleDispatcher")) {
+        safeAwait(block())
     }
 }
 
@@ -186,7 +170,7 @@ internal suspend inline fun <T> safeAwait(stage: CompletionStage<T>): T =
 @JvmName("awaitSafe")
 internal suspend inline fun <T> CompletionStage<T>.safeAwait(): T = safeAwait(this)
 
-/** Perform the [Context.get] operator [withHibernateContext] */
+/** Perform the [Context.get] operator `withHibernateContext` */
 @JvmSynthetic
 internal suspend inline fun <T> Context.safeGet(
     key: Context.Key<T>,

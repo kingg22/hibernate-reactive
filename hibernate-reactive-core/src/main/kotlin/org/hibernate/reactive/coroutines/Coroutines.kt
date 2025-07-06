@@ -392,7 +392,8 @@ interface Coroutines {
          *
          * @see jakarta.persistence.EntityManager.createQuery
          */
-        fun <R> createSelectionQuery(
+        @JvmSynthetic
+        suspend fun <R> createSelectionQuery(
             queryString: String?,
             resultType: Class<R>?,
         ): SelectionQuery<R>
@@ -409,7 +410,8 @@ interface Coroutines {
          *
          * @see org.hibernate.query.QueryProducer.createQuery
          */
-        fun <R> createQuery(typedQueryReference: TypedQueryReference<R>): Query<R>
+        @JvmSynthetic
+        suspend fun <R> createQuery(typedQueryReference: TypedQueryReference<R>): Query<R>
 
         /**
          * Create an instance of [MutationQuery] for the given HQL/JPQL update or delete statement.
@@ -420,7 +422,8 @@ interface Coroutines {
          *
          * @see jakarta.persistence.EntityManager.createQuery
          */
-        fun createMutationQuery(queryString: String?): MutationQuery
+        @JvmSynthetic
+        suspend fun createMutationQuery(queryString: String?): MutationQuery
 
         /**
          * Create an instance of [MutationQuery] for the given update tree.
@@ -431,7 +434,8 @@ interface Coroutines {
          *
          * @see org.hibernate.query.QueryProducer.createMutationQuery
          */
-        fun createMutationQuery(updateQuery: CriteriaUpdate<*>): MutationQuery
+        @JvmSynthetic
+        suspend fun createMutationQuery(updateQuery: CriteriaUpdate<*>): MutationQuery
 
         /**
          * Create an instance of [MutationQuery] for the given delete tree.
@@ -442,7 +446,8 @@ interface Coroutines {
          *
          * @see org.hibernate.query.QueryProducer.createMutationQuery
          */
-        fun createMutationQuery(deleteQuery: CriteriaDelete<*>): MutationQuery
+        @JvmSynthetic
+        suspend fun createMutationQuery(deleteQuery: CriteriaDelete<*>): MutationQuery
 
         /**
          * Create a [MutationQuery] from the given insert select criteria tree
@@ -453,7 +458,8 @@ interface Coroutines {
          *
          * @see org.hibernate.query.QueryProducer.createMutationQuery
          */
-        fun createMutationQuery(insert: JpaCriteriaInsert<*>): MutationQuery
+        @JvmSynthetic
+        suspend fun createMutationQuery(insert: JpaCriteriaInsert<*>): MutationQuery
 
         /**
          * Create an instance of [Query] for the given HQL/JPQL query
@@ -472,7 +478,8 @@ interface Coroutines {
             ReplaceWith("createSelectionQuery(queryString, resultType)"),
             DeprecationLevel.HIDDEN,
         )
-        fun <R> createQuery(queryString: String?): Query<R>
+        @JvmSynthetic
+        suspend fun <R> createQuery(queryString: String?): Query<R>
 
         /**
          * Create an instance of [SelectionQuery] for the given HQL/JPQL query string and query result type.
@@ -484,7 +491,8 @@ interface Coroutines {
          *
          * @see jakarta.persistence.EntityManager.createQuery
          */
-        fun <R> createQuery(
+        @JvmSynthetic
+        suspend fun <R> createQuery(
             queryString: String?,
             resultType: Class<R>?,
         ): SelectionQuery<R>
@@ -498,7 +506,8 @@ interface Coroutines {
          *
          * @see jakarta.persistence.EntityManager.createQuery
          */
-        fun <R> createQuery(criteriaQuery: CriteriaQuery<R>): SelectionQuery<R>
+        @JvmSynthetic
+        suspend fun <R> createQuery(criteriaQuery: CriteriaQuery<R>): SelectionQuery<R>
 
         /**
          * Create an instance of [MutationQuery] for the given criteria update.
@@ -507,7 +516,8 @@ interface Coroutines {
          *
          * @return The [MutationQuery] instance for manipulation and execution
          */
-        fun <R> createQuery(criteriaUpdate: CriteriaUpdate<R>): MutationQuery
+        @JvmSynthetic
+        suspend fun <R> createQuery(criteriaUpdate: CriteriaUpdate<R>): MutationQuery
 
         /**
          * Create an instance of [MutationQuery] for the given criteria delete.
@@ -516,7 +526,8 @@ interface Coroutines {
          *
          * @return The [MutationQuery] instance for manipulation and execution
          */
-        fun <R> createQuery(criteriaDelete: CriteriaDelete<R>): MutationQuery
+        @JvmSynthetic
+        suspend fun <R> createQuery(criteriaDelete: CriteriaDelete<R>): MutationQuery
 
         /**
          * Create an instance of [Query] for the named query.
@@ -527,7 +538,8 @@ interface Coroutines {
          *
          * @see jakarta.persistence.EntityManager.createQuery
          */
-        fun <R> createNamedQuery(queryName: String?): Query<R>
+        @JvmSynthetic
+        suspend fun <R> createNamedQuery(queryName: String?): Query<R>
 
         /**
          * Create an instance of [SelectionQuery] for the named query.
@@ -539,7 +551,8 @@ interface Coroutines {
          *
          * @see jakarta.persistence.EntityManager.createQuery
          */
-        fun <R> createNamedQuery(
+        @JvmSynthetic
+        suspend fun <R> createNamedQuery(
             queryName: String?,
             resultType: Class<R>,
         ): SelectionQuery<R>
@@ -555,7 +568,8 @@ interface Coroutines {
          *
          * @param queryString The SQL select, update, insert, or delete statement
          */
-        fun <R> createNativeQuery(queryString: String?): Query<R>
+        @JvmSynthetic
+        suspend fun <R> createNativeQuery(queryString: String?): Query<R>
 
         /**
          * Create an instance of [Query] for the given SQL query string,
@@ -575,7 +589,8 @@ interface Coroutines {
          * @param queryString The SQL select, update, insert, or delete statement
          * @param affectedEntities The entities which are affected by the statement
          */
-        fun <R> createNativeQuery(
+        @JvmSynthetic
+        suspend fun <R> createNativeQuery(
             queryString: String?,
             affectedEntities: AffectedEntities,
         ): Query<R>
@@ -600,7 +615,8 @@ interface Coroutines {
          *
          * @see jakarta.persistence.EntityManager.createNativeQuery
          */
-        fun <R> createNativeQuery(
+        @JvmSynthetic
+        suspend fun <R> createNativeQuery(
             queryString: String?,
             resultType: Class<R>,
         ): SelectionQuery<R>
@@ -629,7 +645,8 @@ interface Coroutines {
          *
          * @see jakarta.persistence.EntityManager.createNativeQuery
          */
-        fun <R> createNativeQuery(
+        @JvmSynthetic
+        suspend fun <R> createNativeQuery(
             queryString: String?,
             resultType: Class<R>,
             affectedEntities: AffectedEntities,
@@ -648,7 +665,8 @@ interface Coroutines {
          * @see [Coroutines.QueryProducer.getResultSetMapping]
          * @see jakarta.persistence.EntityManager.createNativeQuery
          */
-        fun <R> createNativeQuery(
+        @JvmSynthetic
+        suspend fun <R> createNativeQuery(
             queryString: String?,
             resultSetMapping: ResultSetMapping<R>?,
         ): SelectionQuery<R>
@@ -670,7 +688,8 @@ interface Coroutines {
          * @see [Coroutines.QueryProducer.getResultSetMapping]
          * @see jakarta.persistence.EntityManager.createNativeQuery
          */
-        fun <R> createNativeQuery(
+        @JvmSynthetic
+        suspend fun <R> createNativeQuery(
             queryString: String?,
             resultSetMapping: ResultSetMapping<R>?,
             affectedEntities: AffectedEntities,
@@ -683,16 +702,19 @@ interface Coroutines {
         ): ResultSetMapping<T>
 
         /** Obtain a named [EntityGraph] */
-        fun <T> getEntityGraph(
+        @JvmSynthetic
+        suspend fun <T> getEntityGraph(
             rootType: Class<T>?,
             graphName: String?,
         ): EntityGraph<T>
 
         /** Create a new mutable [EntityGraph] */
-        fun <T> createEntityGraph(rootType: Class<T>?): EntityGraph<T>
+        @JvmSynthetic
+        suspend fun <T> createEntityGraph(rootType: Class<T>?): EntityGraph<T>
 
         /** Create a new mutable copy of a named [EntityGraph] */
-        fun <T> createEntityGraph(
+        @JvmSynthetic
+        suspend fun <T> createEntityGraph(
             rootType: Class<T>?,
             graphName: String?,
         ): EntityGraph<T>
@@ -1421,6 +1443,7 @@ interface Coroutines {
          * @see SessionFactory.withTransaction
          */
         @JvmSynthetic
+        @Throws(Throwable::class)
         suspend fun <T> withTransaction(work: suspend (Transaction) -> T): T
 
         /**
@@ -1863,6 +1886,7 @@ interface Coroutines {
          * @see SessionFactory.withTransaction
          */
         @JvmSynthetic
+        @Throws(Throwable::class)
         suspend fun <T> withTransaction(work: suspend (Transaction) -> T): T
 
         /**
@@ -2036,6 +2060,7 @@ interface Coroutines {
          * @see Coroutines.Session.withTransaction
          */
         @JvmSynthetic
+        @Throws(Throwable::class)
         suspend fun <T> withTransaction(work: suspend (Session, Transaction) -> T): T =
             withSession { s -> s.withTransaction { t -> work(s, t) } }
 
@@ -2058,6 +2083,7 @@ interface Coroutines {
          * @see Coroutines.Session.withTransaction
          */
         @JvmSynthetic
+        @Throws(Throwable::class)
         suspend fun <T> withTransaction(work: suspend (Session) -> T) = withTransaction { session, _ -> work(session) }
 
         /**
@@ -2079,6 +2105,7 @@ interface Coroutines {
          * @see StatelessSession.withTransaction
          */
         @JvmSynthetic
+        @Throws(Throwable::class)
         suspend fun <T> withStatelessTransaction(work: suspend (StatelessSession) -> T): T =
             withStatelessTransaction { statelessSession, _ -> work(statelessSession) }
 
@@ -2100,6 +2127,7 @@ interface Coroutines {
          * @see Coroutines.SessionFactory.withTransaction
          */
         @JvmSynthetic
+        @Throws(Throwable::class)
         suspend fun <T> withStatelessTransaction(work: suspend (StatelessSession, Transaction) -> T): T =
             withStatelessSession { s -> s.withTransaction { t -> work(s, t) } }
 
@@ -2162,6 +2190,7 @@ interface Coroutines {
          * @see Session.withTransaction
          */
         @JvmSynthetic
+        @Throws(Throwable::class)
         suspend fun <T> withTransaction(
             tenantId: String,
             work: suspend (Session, Transaction) -> T,
@@ -2189,6 +2218,7 @@ interface Coroutines {
          * @see StatelessSession.withTransaction
          */
         @JvmSynthetic
+        @Throws(Throwable::class)
         suspend fun <T> withStatelessTransaction(
             tenantId: String?,
             work: suspend (StatelessSession, Transaction) -> T,

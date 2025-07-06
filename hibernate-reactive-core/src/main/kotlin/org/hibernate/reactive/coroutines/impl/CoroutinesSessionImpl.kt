@@ -22,7 +22,6 @@ import org.hibernate.query.criteria.JpaCriteriaInsert
 import org.hibernate.reactive.common.AffectedEntities
 import org.hibernate.reactive.common.Identifier
 import org.hibernate.reactive.common.ResultSetMapping
-import org.hibernate.reactive.context.Context
 import org.hibernate.reactive.coroutines.Coroutines
 import org.hibernate.reactive.coroutines.internal.RequireHibernateReactiveContext
 import org.hibernate.reactive.coroutines.internal.safeAwait
@@ -33,11 +32,9 @@ import org.hibernate.reactive.util.impl.CompletionStages.applyToAll
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
-import kotlin.jvm.Throws
 
 class CoroutinesSessionImpl(
     private val delegate: ReactiveSession,
-    private val context: Context,
     private val factory: CoroutinesSessionFactoryImpl,
     val dispatcher: CoroutineDispatcher,
 ) : Coroutines.Session {
@@ -291,117 +288,139 @@ class CoroutinesSessionImpl(
 
     // -- Query --
     // TODO WARNING: all of delegate.createX check open and need withHibernateContext
-    override fun <R> createQuery(typedQueryReference: TypedQueryReference<R>): Coroutines.Query<R> =
-        CoroutinesQueryImpl(delegate.createReactiveQuery(typedQueryReference), context)
+    override suspend fun <R> createQuery(typedQueryReference: TypedQueryReference<R>): Coroutines.Query<R> =
+        withHibernateContext(dispatcher) { CoroutinesQueryImpl(delegate.createReactiveQuery(typedQueryReference), dispatcher) }
 
     @Deprecated(
         "See explanation in [org.hibernate.query.QueryProducer.createSelectionQuery(string)]",
         replaceWith = ReplaceWith("createSelectionQuery(queryString, resultType)"),
         level = DeprecationLevel.WARNING,
     )
-    override fun <R> createQuery(queryString: String?): Coroutines.Query<R> =
-        CoroutinesQueryImpl(delegate.createReactiveQuery(queryString), context)
+    override suspend fun <R> createQuery(queryString: String?): Coroutines.Query<R> =
+        withHibernateContext(dispatcher) { CoroutinesQueryImpl(delegate.createReactiveQuery(queryString), dispatcher) }
 
-    override fun <R> createNamedQuery(queryName: String?): Coroutines.Query<R> =
-        CoroutinesQueryImpl(delegate.createReactiveNamedQuery(queryName), context)
+    override suspend fun <R> createNamedQuery(queryName: String?): Coroutines.Query<R> =
+        withHibernateContext(dispatcher) { CoroutinesQueryImpl(delegate.createReactiveNamedQuery(queryName), dispatcher) }
 
-    override fun <R> createNativeQuery(queryString: String?): Coroutines.Query<R> =
-        CoroutinesQueryImpl(delegate.createReactiveNativeQuery(queryString), context)
+    override suspend fun <R> createNativeQuery(queryString: String?): Coroutines.Query<R> =
+        withHibernateContext(dispatcher) { CoroutinesQueryImpl(delegate.createReactiveNativeQuery(queryString), dispatcher) }
 
-    override fun <R> createNativeQuery(
+    override suspend fun <R> createNativeQuery(
         queryString: String?,
         affectedEntities: AffectedEntities,
-    ): Coroutines.Query<R> = CoroutinesQueryImpl(delegate.createReactiveNativeQuery(queryString, affectedEntities), context)
+    ): Coroutines.Query<R> =
+        withHibernateContext(dispatcher) {
+            CoroutinesQueryImpl(delegate.createReactiveNativeQuery(queryString, affectedEntities), dispatcher)
+        }
 
     // -- Selection --
-    override fun <R> createSelectionQuery(
+    override suspend fun <R> createSelectionQuery(
         queryString: String?,
         resultType: Class<R>?,
-    ): Coroutines.SelectionQuery<R> = CoroutinesSelectionQueryImpl(delegate.createReactiveSelectionQuery(queryString, resultType), context)
+    ): Coroutines.SelectionQuery<R> =
+        withHibernateContext(dispatcher) {
+            CoroutinesSelectionQueryImpl(delegate.createReactiveSelectionQuery(queryString, resultType), dispatcher)
+        }
 
-    override fun <R> createQuery(
+    override suspend fun <R> createQuery(
         queryString: String?,
         resultType: Class<R>?,
-    ): Coroutines.SelectionQuery<R> = CoroutinesSelectionQueryImpl(delegate.createReactiveQuery(queryString, resultType), context)
+    ): Coroutines.SelectionQuery<R> =
+        withHibernateContext(dispatcher) { CoroutinesSelectionQueryImpl(delegate.createReactiveQuery(queryString, resultType), dispatcher) }
 
-    override fun <R> createQuery(criteriaQuery: CriteriaQuery<R>): Coroutines.SelectionQuery<R> =
-        CoroutinesSelectionQueryImpl(delegate.createReactiveQuery(criteriaQuery), context)
+    override suspend fun <R> createQuery(criteriaQuery: CriteriaQuery<R>): Coroutines.SelectionQuery<R> =
+        withHibernateContext(dispatcher) { CoroutinesSelectionQueryImpl(delegate.createReactiveQuery(criteriaQuery), dispatcher) }
 
-    override fun <R> createNamedQuery(
+    override suspend fun <R> createNamedQuery(
         queryName: String?,
         resultType: Class<R>,
-    ): Coroutines.SelectionQuery<R> = CoroutinesSelectionQueryImpl(delegate.createReactiveNamedQuery(queryName, resultType), context)
+    ): Coroutines.SelectionQuery<R> =
+        withHibernateContext(dispatcher) {
+            CoroutinesSelectionQueryImpl(delegate.createReactiveNamedQuery(queryName, resultType), dispatcher)
+        }
 
-    override fun <R> createNativeQuery(
+    override suspend fun <R> createNativeQuery(
         queryString: String?,
         resultType: Class<R>,
-    ): Coroutines.SelectionQuery<R> = CoroutinesSelectionQueryImpl(delegate.createReactiveNativeQuery(queryString, resultType), context)
+    ): Coroutines.SelectionQuery<R> =
+        withHibernateContext(dispatcher) {
+            CoroutinesSelectionQueryImpl(delegate.createReactiveNativeQuery(queryString, resultType), dispatcher)
+        }
 
-    override fun <R> createNativeQuery(
+    override suspend fun <R> createNativeQuery(
         queryString: String?,
         resultType: Class<R>,
         affectedEntities: AffectedEntities,
     ): Coroutines.SelectionQuery<R> =
-        CoroutinesSelectionQueryImpl(
-            delegate.createReactiveNativeQuery(queryString, resultType, affectedEntities),
-            context,
-        )
+        withHibernateContext(dispatcher) {
+            CoroutinesSelectionQueryImpl(delegate.createReactiveNativeQuery(queryString, resultType, affectedEntities), dispatcher)
+        }
 
-    override fun <R> createNativeQuery(
+    override suspend fun <R> createNativeQuery(
         queryString: String?,
         resultSetMapping: ResultSetMapping<R>?,
     ): Coroutines.SelectionQuery<R> =
-        CoroutinesSelectionQueryImpl(delegate.createReactiveNativeQuery(queryString, resultSetMapping), context)
+        withHibernateContext(dispatcher) {
+            CoroutinesSelectionQueryImpl(delegate.createReactiveNativeQuery(queryString, resultSetMapping), dispatcher)
+        }
 
-    override fun <R> createNativeQuery(
+    override suspend fun <R> createNativeQuery(
         queryString: String?,
         resultSetMapping: ResultSetMapping<R>?,
         affectedEntities: AffectedEntities,
     ): Coroutines.SelectionQuery<R> =
-        CoroutinesSelectionQueryImpl(
-            delegate.createReactiveNativeQuery(
-                queryString,
-                resultSetMapping,
-                affectedEntities,
-            ),
-            context,
-        )
+        withHibernateContext(dispatcher) {
+            CoroutinesSelectionQueryImpl(delegate.createReactiveNativeQuery(queryString, resultSetMapping, affectedEntities), dispatcher)
+        }
 
     // -- Mutation --
-    override fun createMutationQuery(queryString: String?): Coroutines.MutationQuery =
-        CoroutinesMutationQueryImpl(delegate.createReactiveMutationQuery<Any>(queryString), context)
+    override suspend fun createMutationQuery(queryString: String?): Coroutines.MutationQuery =
+        withHibernateContext(dispatcher) {
+            CoroutinesMutationQueryImpl(delegate.createReactiveMutationQuery<Any>(queryString), dispatcher)
+        }
 
-    override fun createMutationQuery(updateQuery: CriteriaUpdate<*>): Coroutines.MutationQuery =
-        CoroutinesMutationQueryImpl(delegate.createReactiveMutationQuery(updateQuery), context)
+    override suspend fun createMutationQuery(updateQuery: CriteriaUpdate<*>): Coroutines.MutationQuery =
+        withHibernateContext(dispatcher) {
+            CoroutinesMutationQueryImpl(delegate.createReactiveMutationQuery(updateQuery), dispatcher)
+        }
 
-    override fun createMutationQuery(deleteQuery: CriteriaDelete<*>): Coroutines.MutationQuery =
-        CoroutinesMutationQueryImpl(delegate.createReactiveMutationQuery(deleteQuery), context)
+    override suspend fun createMutationQuery(deleteQuery: CriteriaDelete<*>): Coroutines.MutationQuery =
+        withHibernateContext(dispatcher) {
+            CoroutinesMutationQueryImpl(delegate.createReactiveMutationQuery(deleteQuery), dispatcher)
+        }
 
-    override fun createMutationQuery(insert: JpaCriteriaInsert<*>): Coroutines.MutationQuery =
-        CoroutinesMutationQueryImpl(delegate.createReactiveMutationQuery(insert), context)
+    override suspend fun createMutationQuery(insert: JpaCriteriaInsert<*>): Coroutines.MutationQuery =
+        withHibernateContext(dispatcher) {
+            CoroutinesMutationQueryImpl(delegate.createReactiveMutationQuery(insert), dispatcher)
+        }
 
-    override fun <R> createQuery(criteriaUpdate: CriteriaUpdate<R>): Coroutines.MutationQuery =
-        CoroutinesMutationQueryImpl(delegate.createReactiveMutationQuery(criteriaUpdate), context)
+    override suspend fun <R> createQuery(criteriaUpdate: CriteriaUpdate<R>): Coroutines.MutationQuery =
+        withHibernateContext(dispatcher) {
+            CoroutinesMutationQueryImpl(delegate.createReactiveMutationQuery(criteriaUpdate), dispatcher)
+        }
 
-    override fun <R> createQuery(criteriaDelete: CriteriaDelete<R>): Coroutines.MutationQuery =
-        CoroutinesMutationQueryImpl(delegate.createReactiveMutationQuery(criteriaDelete), context)
+    override suspend fun <R> createQuery(criteriaDelete: CriteriaDelete<R>): Coroutines.MutationQuery =
+        withHibernateContext(dispatcher) {
+            CoroutinesMutationQueryImpl(delegate.createReactiveMutationQuery(criteriaDelete), dispatcher)
+        }
 
     override fun <T> getResultSetMapping(
         resultType: Class<T>?,
         mappingName: String?,
     ): ResultSetMapping<T> = delegate.getResultSetMapping(resultType, mappingName)
 
-    override fun <T> getEntityGraph(
+    override suspend fun <T> getEntityGraph(
         rootType: Class<T>?,
         graphName: String?,
-    ): EntityGraph<T> = delegate.getEntityGraph(rootType, graphName)
+    ): EntityGraph<T> = withHibernateContext(dispatcher) { delegate.getEntityGraph(rootType, graphName) }
 
-    override fun <T> createEntityGraph(rootType: Class<T>?): EntityGraph<T> = delegate.createEntityGraph(rootType)
+    override suspend fun <T> createEntityGraph(rootType: Class<T>?): EntityGraph<T> =
+        withHibernateContext(dispatcher) { delegate.createEntityGraph(rootType) }
 
-    override fun <T> createEntityGraph(
+    override suspend fun <T> createEntityGraph(
         rootType: Class<T>?,
         graphName: String?,
-    ): EntityGraph<T> = delegate.createEntityGraph(rootType, graphName)
+    ): EntityGraph<T> = withHibernateContext(dispatcher) { delegate.createEntityGraph(rootType, graphName) }
 
     override fun getCriteriaBuilder(): CriteriaBuilder = getFactory().getCriteriaBuilder()
 
@@ -416,7 +435,6 @@ class CoroutinesSessionImpl(
 
         override fun isMarkedForRollback(): Boolean = rollback
 
-        @Throws(Throwable::class)
         suspend fun execute(work: suspend (Coroutines.Transaction) -> T): T {
             contract {
                 callsInPlace(work, InvocationKind.EXACTLY_ONCE)
@@ -430,7 +448,6 @@ class CoroutinesSessionImpl(
             }
         }
 
-        @Throws(Throwable::class)
         private suspend fun executeInTransaction(work: suspend (Coroutines.Transaction) -> T): T {
             contract {
                 callsInPlace(work, InvocationKind.EXACTLY_ONCE)

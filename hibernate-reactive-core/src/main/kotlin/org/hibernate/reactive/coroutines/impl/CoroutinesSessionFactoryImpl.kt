@@ -130,7 +130,7 @@ class CoroutinesSessionFactoryImpl
                             ReactiveSessionImpl(delegate, options, reactiveConnection)
                         }
                     @OptIn(RequireHibernateReactiveContext::class) // Is safe pass as argument
-                    CoroutinesSessionImpl(session, checkNotNull(context), this@CoroutinesSessionFactoryImpl, dispatcher)
+                    CoroutinesSessionImpl(session, this@CoroutinesSessionFactoryImpl, dispatcher)
                 }
             }
         }
@@ -156,7 +156,7 @@ class CoroutinesSessionFactoryImpl
                             ReactiveStatelessSessionImpl(delegate, options, reactiveConnection)
                         }
                     @OptIn(RequireHibernateReactiveContext::class) // Is safe pass as argument
-                    CoroutinesStatelessSessionImpl(session, checkNotNull(context), this@CoroutinesSessionFactoryImpl, dispatcher)
+                    CoroutinesStatelessSessionImpl(session, this@CoroutinesSessionFactoryImpl, dispatcher)
                 }
             }
         }

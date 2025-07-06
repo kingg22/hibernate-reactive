@@ -12,14 +12,17 @@ import org.hibernate.LockMode
 import org.hibernate.reactive.coroutines.impl.CoroutinesSessionImpl
 import org.hibernate.reactive.coroutines.impl.CoroutinesStatelessSessionImpl
 
-inline fun <reified T> Coroutines.QueryProducer.createSelectionQuery(queryString: String) = createSelectionQuery(queryString, T::class.java)
+suspend inline fun <reified T> Coroutines.QueryProducer.createSelectionQuery(queryString: String) =
+    createSelectionQuery(queryString, T::class.java)
 
 // Shadowed by deprecated function on interface, if we mark hidden, this works fine
-inline fun <reified T> Coroutines.QueryProducer.createQuery(queryName: String) = createQuery(queryName, T::class.java)
+suspend inline fun <reified T> Coroutines.QueryProducer.createQuery(queryName: String) = createQuery(queryName, T::class.java)
 
-inline fun <reified T> Coroutines.QueryProducer.createNamedQueryOfType(queryName: String) = createNamedQuery(queryName, T::class.java)
+suspend inline fun <reified T> Coroutines.QueryProducer.createNamedQueryOfType(queryName: String) =
+    createNamedQuery(queryName, T::class.java)
 
-inline fun <reified T> Coroutines.QueryProducer.createNativeQueryOfType(queryName: String) = createNativeQuery(queryName, T::class.java)
+suspend inline fun <reified T> Coroutines.QueryProducer.createNativeQueryOfType(queryName: String) =
+    createNativeQuery(queryName, T::class.java)
 
 suspend inline fun <reified T> Coroutines.Session.find(id: Any?) = find(T::class.java, id)
 

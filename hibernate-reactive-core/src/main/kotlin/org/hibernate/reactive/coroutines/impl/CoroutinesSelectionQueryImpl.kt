@@ -9,19 +9,19 @@ import jakarta.persistence.CacheRetrieveMode
 import jakarta.persistence.CacheStoreMode
 import jakarta.persistence.EntityGraph
 import jakarta.persistence.Parameter
+import kotlinx.coroutines.CoroutineDispatcher
 import org.hibernate.CacheMode
 import org.hibernate.FlushMode
 import org.hibernate.LockMode
 import org.hibernate.graph.GraphSemantic
 import org.hibernate.graph.spi.RootGraphImplementor
-import org.hibernate.reactive.context.Context
 import org.hibernate.reactive.coroutines.Coroutines
 import org.hibernate.reactive.coroutines.internal.withHibernateContext
 import org.hibernate.reactive.query.ReactiveSelectionQuery
 
 class CoroutinesSelectionQueryImpl<R>(
     private val delegate: ReactiveSelectionQuery<R>,
-    private val context: Context,
+    private val dispatcher: CoroutineDispatcher,
 ) : Coroutines.SelectionQuery<R> {
     override fun setFlushMode(flushMode: FlushMode?): Coroutines.SelectionQuery<R> =
         apply {
@@ -55,13 +55,13 @@ class CoroutinesSelectionQueryImpl<R>(
 
     override fun getFirstResult(): Int = delegate.firstResult
 
-    override suspend fun getSingleResult(): R = withHibernateContext(context, delegate::getReactiveSingleResult)
+    override suspend fun getSingleResult(): R = withHibernateContext(dispatcher, delegate::getReactiveSingleResult)
 
-    override suspend fun getSingleResultOrNull(): R? = withHibernateContext(context, delegate::getReactiveSingleResultOrNull)
+    override suspend fun getSingleResultOrNull(): R? = withHibernateContext(dispatcher, delegate::getReactiveSingleResultOrNull)
 
-    override suspend fun getResultCount(): Long? = withHibernateContext(context, delegate::getReactiveResultCount)
+    override suspend fun getResultCount(): Long? = withHibernateContext(dispatcher, delegate::getReactiveResultCount)
 
-    override suspend fun getResultList(): List<R> = withHibernateContext(context, delegate::getReactiveResultList)
+    override suspend fun getResultList(): List<R> = withHibernateContext(dispatcher, delegate::getReactiveResultList)
 
     override fun setReadOnly(readOnly: Boolean): Coroutines.SelectionQuery<R> =
         apply {
