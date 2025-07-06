@@ -213,56 +213,32 @@ class CoroutinesSessionImpl(
             FlushMode.ALWAYS -> FlushMode.ALWAYS
         }
 
-    override fun detach(entity: Any?): Coroutines.Session =
-        apply {
-            delegate.detach(entity)
-        }
+    override fun detach(entity: Any?): Coroutines.Session = apply { delegate.detach(entity) }
 
-    override fun clear(): Coroutines.Session =
-        apply {
-            delegate.clear()
-        }
+    override fun clear(): Coroutines.Session = apply { delegate.clear() }
 
-    override fun enableFetchProfile(name: String?): Coroutines.Session =
-        apply {
-            delegate.enableFetchProfile(name)
-        }
+    override fun enableFetchProfile(name: String?): Coroutines.Session = apply { delegate.enableFetchProfile(name) }
 
-    override fun disableFetchProfile(name: String?): Coroutines.Session =
-        apply {
-            delegate.disableFetchProfile(name)
-        }
+    override fun disableFetchProfile(name: String?): Coroutines.Session = apply { delegate.disableFetchProfile(name) }
 
     override fun isFetchProfileEnabled(name: String?): Boolean = delegate.isFetchProfileEnabled(name)
 
-    override fun setDefaultReadOnly(readOnly: Boolean): Coroutines.Session =
-        apply {
-            delegate.isDefaultReadOnly = readOnly
-        }
+    override fun setDefaultReadOnly(readOnly: Boolean): Coroutines.Session = apply { delegate.isDefaultReadOnly = readOnly }
 
     override fun isDefaultReadOnly(): Boolean = delegate.isDefaultReadOnly
 
     override fun setReadOnly(
         entityOrProxy: Any,
         readOnly: Boolean,
-    ): Coroutines.Session =
-        apply {
-            delegate.setReadOnly(entityOrProxy, readOnly)
-        }
+    ): Coroutines.Session = apply { delegate.setReadOnly(entityOrProxy, readOnly) }
 
     override fun isReadOnly(entityOrProxy: Any): Boolean = delegate.isReadOnly(entityOrProxy)
 
-    override fun setCacheMode(cacheMode: CacheMode?): Coroutines.Session =
-        apply {
-            delegate.cacheMode = cacheMode
-        }
+    override fun setCacheMode(cacheMode: CacheMode?): Coroutines.Session = apply { delegate.cacheMode = cacheMode }
 
     override fun getCacheMode(): CacheMode? = delegate.cacheMode
 
-    override fun setBatchSize(batchSize: Int?): Coroutines.Session =
-        apply {
-            delegate.batchSize = batchSize
-        }
+    override fun setBatchSize(batchSize: Int?): Coroutines.Session = apply { delegate.batchSize = batchSize }
 
     override fun getBatchSize(): Int? = delegate.batchSize
 
@@ -274,17 +250,11 @@ class CoroutinesSessionImpl(
 
     override fun getFetchBatchSize(): Int = delegate.fetchBatchSize
 
-    override fun setFetchBatchSize(batchSize: Int): Coroutines.Session =
-        apply {
-            delegate.fetchBatchSize = batchSize
-        }
+    override fun setFetchBatchSize(batchSize: Int): Coroutines.Session = apply { delegate.fetchBatchSize = batchSize }
 
     override fun isSubselectFetchingEnabled(): Boolean = delegate.isSubselectFetchingEnabled
 
-    override fun setSubselectFetchingEnabled(enabled: Boolean): Coroutines.Session =
-        apply {
-            delegate.isSubselectFetchingEnabled = enabled
-        }
+    override fun setSubselectFetchingEnabled(enabled: Boolean): Coroutines.Session = apply { delegate.isSubselectFetchingEnabled = enabled }
 
     override fun isOpen(): Boolean = delegate.isOpen
 
@@ -437,9 +407,7 @@ class CoroutinesSessionImpl(
         override fun isMarkedForRollback(): Boolean = rollback
 
         suspend fun execute(work: suspend (Coroutines.Transaction) -> T): T {
-            contract {
-                callsInPlace(work, InvocationKind.EXACTLY_ONCE)
-            }
+            contract { callsInPlace(work, InvocationKind.EXACTLY_ONCE) }
             return try {
                 currentTransaction = this
                 begin()
@@ -450,9 +418,7 @@ class CoroutinesSessionImpl(
         }
 
         private suspend fun executeInTransaction(work: suspend (Coroutines.Transaction) -> T): T {
-            contract {
-                callsInPlace(work, InvocationKind.EXACTLY_ONCE)
-            }
+            contract { callsInPlace(work, InvocationKind.EXACTLY_ONCE) }
             return try {
                 val result = work(this)
                 // only flush() if the work completed with no exception

@@ -18,6 +18,7 @@ dependencies {
 
     api 'io.smallrye.reactive:mutiny:2.9.0'
     api 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2'
+    implementation "io.vertx:vertx-lang-kotlin-coroutines:${vertxSqlClientVersion}"
 
     //Logging
     implementation 'org.jboss.logging:jboss-logging:3.6.1.Final'

@@ -11,7 +11,10 @@ import jakarta.persistence.criteria.CriteriaBuilder
 import jakarta.persistence.criteria.CriteriaDelete
 import jakarta.persistence.criteria.CriteriaQuery
 import jakarta.persistence.criteria.CriteriaUpdate
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.withContext
 import org.hibernate.LockMode
 import org.hibernate.graph.RootGraph
@@ -24,16 +27,17 @@ import org.hibernate.reactive.coroutines.internal.safeAwait
 import org.hibernate.reactive.coroutines.internal.withHibernateContext
 import org.hibernate.reactive.pool.ReactiveConnection
 import org.hibernate.reactive.session.ReactiveStatelessSession
+import org.hibernate.reactive.util.impl.CompletionStages.voidFuture
 import java.util.concurrent.CompletableFuture
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
-import kotlin.coroutines.CoroutineContext
 
 class CoroutinesStatelessSessionImpl(
     private val delegate: ReactiveStatelessSession,
     private val factory: CoroutinesSessionFactoryImpl,
-    val dispatcher: CoroutineContext,
+    val dispatcher: CoroutineDispatcher,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : Coroutines.StatelessSession {
     // This need synchronized?
     private var currentTransaction: CoroutinesStatelessTransaction<*>? = null
@@ -62,12 +66,22 @@ class CoroutinesStatelessSessionImpl(
             delegate.reactiveGet((entityGraph as RootGraph<T>).graphedType.javaType, id, null, entityGraph)
         }
 
-    override suspend fun insert(entity: Any?) {
+    override suspend fun insert(entity: Any) {
         withHibernateContext(dispatcher) { delegate.reactiveInsert(entity) }
     }
 
-    override suspend fun insertAll(vararg entities: Any?) {
-        withHibernateContext(dispatcher) { delegate.reactiveInsertAll(entities.size, *entities) }
+    override suspend fun insertAll(vararg entities: Any) {
+        println("Going to switch context, current thread is ${Thread.currentThread().name}")
+        @OptIn(RequireHibernateReactiveContext::class)
+        withContext(ioDispatcher) {
+            println("Dispatcher of the session is ${dispatcher.hashCode()}")
+            println("Executing in ${Thread.currentThread().name}")
+            voidFuture()
+                .thenComposeAsync(
+                    { _ -> delegate.reactiveInsertAll(entities.size, *entities) },
+                    dispatcher.asExecutor(),
+                ).safeAwait()
+        }
     }
 
     override suspend fun insertAll(
@@ -329,10 +343,7 @@ class CoroutinesStatelessSessionImpl(
         override fun isMarkedForRollback(): Boolean = rollback
 
         suspend fun execute(work: suspend (Coroutines.Transaction) -> T): T {
-            @Suppress("WRONG_INVOCATION_KIND")
-            contract {
-                callsInPlace(work, InvocationKind.EXACTLY_ONCE)
-            }
+            contract { callsInPlace(work, InvocationKind.EXACTLY_ONCE) }
             return try {
                 currentTransaction = this
                 begin()
@@ -343,9 +354,7 @@ class CoroutinesStatelessSessionImpl(
         }
 
         suspend fun executeInTransaction(work: suspend (Coroutines.Transaction) -> T): T {
-            contract {
-                callsInPlace(work, InvocationKind.EXACTLY_ONCE)
-            }
+            contract { callsInPlace(work, InvocationKind.EXACTLY_ONCE) }
             return try {
                 val result = work(this)
                 // finally, when there was no exception, commit or rollback the transaction

@@ -10,20 +10,19 @@ import kotlinx.coroutines.future.await
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions
 import org.hibernate.reactive.CoroutinesTestHelper.test
+import org.hibernate.reactive.coroutines.hibernateScope
 import org.hibernate.reactive.coroutines.impl.CoroutinesSessionImpl
 import org.hibernate.reactive.coroutines.impl.CoroutinesStatelessSessionImpl
 import org.hibernate.reactive.pool.BatchingConnection
 import org.hibernate.reactive.pool.impl.SqlClientConnection
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.minutes
 
 class BatchingConnectionKtTest : BatchingConnectionTest() {
     // See io.vertx.junit5.Timeout annotation on super test class
-    private val timeout = 1.minutes
+    private val timeout = 10.minutes
 
     @Test
-    @Disabled("Block the event loop, this is caused because await in the same thread of stage complete")
     fun testBatchingWithStageAsCoroutinesStateless(context: VertxTestContext) =
         runTest(timeout = timeout) {
             test(context) {
@@ -38,10 +37,12 @@ class BatchingConnectionKtTest : BatchingConnectionTest() {
                     )
 
                 // The same purpose, but all types are platform types and syntax 100% java style
-                getSessionFactory()
-                    .withStatelessSession { session ->
-                        session.insert(10, *pigs)
-                    }.await()
+                hibernateScope {
+                    getSessionFactory()
+                        .withStatelessSession { session ->
+                            session.insert(10, *pigs)
+                        }
+                }
                 Assertions.assertThat(sqlTracker.loggedQueries).hasSize(1)
                 Assertions
                     .assertThat(sqlTracker.loggedQueries[0])
@@ -95,7 +96,7 @@ class BatchingConnectionKtTest : BatchingConnectionTest() {
                 )
             test(context) {
                 getCoroutinesSessionFactory()
-                    .withStatelessTransaction { s -> s.insertAll(*pigs) }
+                    .withStatelessSession { s -> s.insertAll(*pigs) }
 
                 // We expect only 1 insert query, despite hibernate.jdbc.batch_size is set to 5
                 // insertAll by default use the pigs.length as batch size

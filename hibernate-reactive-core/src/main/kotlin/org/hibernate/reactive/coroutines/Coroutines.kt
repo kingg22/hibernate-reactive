@@ -1665,7 +1665,7 @@ interface Coroutines {
          * @see org.hibernate.StatelessSession.insert
          */
         @JvmSynthetic
-        suspend fun insert(entity: Any?)
+        suspend fun insert(entity: Any)
 
         /**
          * Insert multiple rows, using the number of the
@@ -1676,7 +1676,7 @@ interface Coroutines {
          * @see org.hibernate.StatelessSession.insert
          */
         @JvmSynthetic
-        suspend fun insertAll(vararg entities: Any?)
+        suspend fun insertAll(vararg entities: Any)
 
         /**
          * Insert multiple rows using the specified batch size.
@@ -1701,7 +1701,7 @@ interface Coroutines {
          * @see org.hibernate.StatelessSession.insert
          */
         @JvmSynthetic
-        suspend fun insertMultiple(entities: List<*>) = insertAll(*entities.toTypedArray())
+        suspend fun insertMultiple(entities: List<Any>) = insertAll(*entities.toTypedArray())
 
         /**
          * Delete a row.

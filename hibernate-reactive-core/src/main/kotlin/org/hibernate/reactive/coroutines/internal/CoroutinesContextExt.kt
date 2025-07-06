@@ -68,10 +68,10 @@ import kotlin.experimental.ExperimentalTypeInference
  * @see <a href="https://kotlinlang.org/docs/coroutine-context-and-dispatchers.html#dispatchers-and-threads">Read more about coroutines and dispatchers</a>
  */
 @JvmSynthetic
-@OverloadResolutionByLambdaReturnType
-internal suspend inline fun <T> withHibernateContext(
+@Deprecated("Don't use Context as dispatcher", level = DeprecationLevel.HIDDEN)
+internal suspend fun <T> withHibernateContext(
     context: Context,
-    crossinline block: suspend () -> T,
+    block: suspend () -> T,
 ): T {
     contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
 
@@ -112,9 +112,9 @@ internal suspend inline fun <T> withHibernateContext(
  */
 @JvmSynthetic
 @OverloadResolutionByLambdaReturnType
-internal suspend inline fun <T> withHibernateContext(
+internal suspend fun <T> withHibernateContext(
     dispatcher: CoroutineContext,
-    crossinline block: suspend () -> T,
+    block: suspend () -> T,
 ): T {
     contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
 
@@ -137,9 +137,9 @@ internal suspend inline fun <T> withHibernateContext(
  * @see safeAwait
  */
 @JvmSynthetic
-internal suspend inline fun <T> withHibernateContext(
+internal suspend fun <T> withHibernateContext(
     dispatcher: CoroutineContext,
-    crossinline block: () -> CompletionStage<T>,
+    block: () -> CompletionStage<T>,
 ): T {
     contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
 
@@ -153,8 +153,8 @@ internal suspend inline fun <T> withHibernateContext(
  * @param stage Work to await
  */
 @JvmSynthetic
-internal suspend inline fun <T> safeAwait(stage: CompletionStage<T>): T =
-    withContext(CoroutineName("safeAwait")) {
+internal suspend fun <T> safeAwait(stage: CompletionStage<T>): T =
+    withContext(CoroutineName("HR Coroutines safeAwait")) {
         try {
             stage.await()
         } catch (c: java.util.concurrent.CompletionException) {
@@ -166,16 +166,28 @@ internal suspend inline fun <T> safeAwait(stage: CompletionStage<T>): T =
 /** Unwrap the [java.util.concurrent.CompletionException] if occurs. */
 @JvmSynthetic
 @JvmName("awaitSafe")
-internal suspend inline fun <T> CompletionStage<T>.safeAwait(): T = safeAwait(this)
+internal suspend fun <T> CompletionStage<T>.safeAwait(): T = safeAwait(this)
+
+/**
+ * Unwrap the [java.util.concurrent.CompletionException] if occurs.
+ * @param block Work return stage to await.
+ */
+@JvmSynthetic
+internal suspend fun <T> safeAwait(block: () -> CompletionStage<T>): T {
+    contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
+    return safeAwait(block())
+}
 
 /** Perform the [Context.get] operator `withHibernateContext` */
 @JvmSynthetic
-internal suspend inline fun <T> Context.safeGet(
+internal suspend fun <T> Context.safeGet(
     key: Context.Key<T>,
-    dispatcher: CoroutineContext?,
-): T? =
-    if (dispatcher != null) {
-        withHibernateContext(dispatcher) { this[key] }
-    } else {
-        withHibernateContext(this) { this[key] }
-    }
+    dispatcher: CoroutineContext,
+): T? = withContext(dispatcher) { this@safeGet[key] }
+
+/** Kotlin operator to perform `put` method. */
+@JvmSynthetic
+internal operator fun <T> Context.set(
+    key: Context.Key<T>,
+    instance: T,
+) = put(key, instance)

@@ -7,15 +7,21 @@
 
 package org.hibernate.reactive.coroutines
 
+import io.smallrye.mutiny.Uni
 import jakarta.persistence.LockModeType
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.future.await
 import kotlinx.coroutines.withContext
 import org.hibernate.LockMode
 import org.hibernate.reactive.coroutines.impl.CoroutinesSessionImpl
 import org.hibernate.reactive.coroutines.impl.CoroutinesStatelessSessionImpl
+import java.util.concurrent.CompletionStage
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
+import kotlin.experimental.ExperimentalTypeInference
 
 suspend inline fun <reified T> Coroutines.QueryProducer.createSelectionQuery(queryString: String) =
     createSelectionQuery(queryString, T::class.java)
@@ -102,6 +108,36 @@ suspend inline fun <T : Coroutines.Closeable, R> T.use(block: (T) -> R): R {
                 } catch (closeException: Throwable) {
                     cause.addSuppressed(closeException)
                 }
+        }
+    }
+}
+
+/** Scope to convert [org.hibernate.reactive.stage.Stage] API to coroutines. */
+@JvmSynthetic
+@OptIn(ExperimentalTypeInference::class)
+@OverloadResolutionByLambdaReturnType
+suspend fun <T> hibernateScope(block: () -> CompletionStage<T>): T {
+    contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
+    // Force change to Dispatcher IO, prevent await in the same thread of the session op
+    return withContext(Dispatchers.IO + CoroutineName("hibernate stage scope")) {
+        try {
+            block().await()
+        } catch (c: java.util.concurrent.CompletionException) {
+            throw c.cause ?: c
+        }
+    }
+}
+
+/** Scope to convert [org.hibernate.reactive.mutiny.Mutiny] API to coroutines. */
+@JvmName("hibernateScopeMutiny")
+@JvmSynthetic
+suspend fun <T> hibernateScope(block: () -> Uni<T>): T {
+    contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
+    return withContext(Dispatchers.IO + CoroutineName("hibernate mutiny scope")) {
+        try {
+            block().subscribeAsCompletionStage().await()
+        } catch (c: java.util.concurrent.CompletionException) {
+            throw c.cause ?: c
         }
     }
 }
