@@ -142,7 +142,7 @@ public class MutinyStatelessSessionTest extends BaseReactiveTest {
 	public void testStatelessSessionCriteria(VertxTestContext context) {
 		GuineaPig pig = new GuineaPig( "Aloi" );
 		GuineaPig mate = new GuineaPig("Aloina");
-		pig.mate = mate;
+		pig.setMate(mate);
 
 		CriteriaBuilder cb = getSessionFactory().getCriteriaBuilder();
 
@@ -275,5 +275,13 @@ public class MutinyStatelessSessionTest extends BaseReactiveTest {
 		public int hashCode() {
 			return Objects.hash( name );
 		}
-	}
+
+        public GuineaPig getMate() {
+            return mate;
+        }
+
+        public void setMate(GuineaPig mate) {
+            this.mate = mate;
+        }
+    }
 }

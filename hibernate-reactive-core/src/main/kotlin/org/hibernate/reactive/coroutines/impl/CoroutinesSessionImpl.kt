@@ -287,7 +287,6 @@ class CoroutinesSessionImpl(
     override fun isOpen(): Boolean = delegate.isOpen
 
     // -- Query --
-    // TODO WARNING: all of delegate.createX check open and need withHibernateContext
     override suspend fun <R> createQuery(typedQueryReference: TypedQueryReference<R>): Coroutines.Query<R> =
         withHibernateContext(dispatcher) { CoroutinesQueryImpl(delegate.createReactiveQuery(typedQueryReference), dispatcher) }
 

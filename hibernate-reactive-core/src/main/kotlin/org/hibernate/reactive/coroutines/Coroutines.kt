@@ -341,6 +341,24 @@ interface Coroutines {
          * Enable a [fetch][org.hibernate.annotations.FetchProfile] which will be in effect during execution of this query.
          */
         fun enableFetchProfile(profileName: String?): SelectionQuery<R>
+
+        // Overrides
+        override fun setParameter(
+            parameter: Int,
+            argument: Any,
+        ): SelectionQuery<R>
+
+        override fun setParameter(
+            parameter: String,
+            argument: Any,
+        ): SelectionQuery<R>
+
+        override fun <T> setParameter(
+            parameter: Parameter<T>,
+            argument: T,
+        ): SelectionQuery<R>
+
+        override fun setComment(comment: String?): SelectionQuery<R>
     }
 
     interface MutationQuery : AbstractQuery {
@@ -354,25 +372,89 @@ interface Coroutines {
          */
         @JvmSynthetic
         suspend fun executeUpdate(): Int
+
+        // overrides
+        override fun setParameter(
+            parameter: Int,
+            argument: Any,
+        ): MutationQuery
+
+        override fun setParameter(
+            parameter: String,
+            argument: Any,
+        ): MutationQuery
+
+        override fun <T> setParameter(
+            parameter: Parameter<T>,
+            argument: T,
+        ): MutationQuery
+
+        override fun setComment(comment: String?): MutationQuery
     }
 
     interface Query<R> :
         SelectionQuery<R>,
         MutationQuery {
+        // Overrides
+        override fun setMaxResults(maxResults: Int): Query<R>
+
+        override fun setFirstResult(firstResult: Int): Query<R>
+
+        @Incubating
+        override fun setPage(page: Page): Query<R> = apply { super<SelectionQuery>.setPage(page) }
+
+        override fun setReadOnly(readOnly: Boolean): Query<R>
+
+        override fun setCacheable(cacheable: Boolean): Query<R>
+
+        override fun setCacheRegion(cacheRegion: String?): Query<R>
+
+        override fun setCacheMode(cacheMode: CacheMode?): Query<R>
+
         override fun setCacheStoreMode(cacheStoreMode: CacheStoreMode?): Query<R> =
             apply { super<SelectionQuery>.setCacheStoreMode(cacheStoreMode) }
 
         override fun setCacheRetrieveMode(cacheRetrieveMode: CacheRetrieveMode?): Query<R> =
             apply { super<SelectionQuery>.setCacheRetrieveMode(cacheRetrieveMode) }
 
+        override fun setFlushMode(flushMode: FlushMode?): Query<R>
+
         override fun setFlushMode(flushModeType: FlushModeType?): Query<R> = apply { super<SelectionQuery>.setFlushMode(flushModeType) }
+
+        override fun setLockMode(lockMode: LockMode?): Query<R>
 
         override fun setLockMode(lockModeType: LockModeType): Query<R> = apply { super<SelectionQuery>.setLockMode(lockModeType) }
 
         override fun setLockMode(
             alias: String?,
+            lockMode: LockMode?,
+        ): Query<R>
+
+        override fun setLockMode(
+            alias: String?,
             lockModeType: LockModeType,
         ): Query<R> = apply { super<SelectionQuery>.setLockMode(alias, lockModeType) }
+
+        override fun setPlan(entityGraph: EntityGraph<R>?): Query<R>
+
+        override fun enableFetchProfile(profileName: String?): Query<R>
+
+        override fun setParameter(
+            parameter: Int,
+            argument: Any,
+        ): Query<R>
+
+        override fun setParameter(
+            parameter: String,
+            argument: Any,
+        ): Query<R>
+
+        override fun <T> setParameter(
+            parameter: Parameter<T>,
+            argument: T,
+        ): Query<R>
+
+        override fun setComment(comment: String?): Query<R>
     }
 
     /**
@@ -1505,7 +1587,7 @@ interface Coroutines {
         @JvmSynthetic
         suspend fun <T> get(
             entityClass: Class<T>,
-            id: Any?,
+            id: Any,
         ): T?
 
         /**

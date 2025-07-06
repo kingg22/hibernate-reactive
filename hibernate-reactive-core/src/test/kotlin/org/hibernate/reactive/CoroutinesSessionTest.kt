@@ -8,7 +8,6 @@ package org.hibernate.reactive
 import io.vertx.junit5.VertxTestContext
 import jakarta.persistence.LockModeType
 import jakarta.persistence.PersistenceException
-import kotlinx.coroutines.future.await
 import kotlinx.coroutines.test.runTest
 import org.hibernate.LockMode
 import org.hibernate.reactive.CoroutinesTestHelper.test
@@ -273,7 +272,6 @@ class CoroutinesSessionTest : BaseReactiveTest() {
                         flush()
                         throw RuntimeException()
                     }
-                    fail() // unreachable code
                 }
 
                 assertNull(selectNameFromId(10))
@@ -300,11 +298,12 @@ class CoroutinesSessionTest : BaseReactiveTest() {
                 populateDB()
                 assertNotNull(selectNameFromId(5))
                 assertThrows<Exception> {
-                    val session = openCoroutinesSession().await()
-                    session.remove(GuineaPig(5, "Aloi"))
-                    session.flush()
-                    session.close()
-                    fail("Expected exception when removing transient entity")
+                    getCoroutinesSessionFactory().withSession { session ->
+                        session.remove(GuineaPig(5, "Aloi"))
+                        session.flush()
+                        session.close()
+                        fail("Expected exception when removing transient entity")
+                    }
                 }
                 assertNotNull(selectNameFromId(5))
             }

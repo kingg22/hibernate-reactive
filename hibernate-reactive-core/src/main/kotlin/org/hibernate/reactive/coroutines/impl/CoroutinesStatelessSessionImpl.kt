@@ -38,7 +38,7 @@ class CoroutinesStatelessSessionImpl(
 
     override suspend fun <T> get(
         entityClass: Class<T>,
-        id: Any?,
+        id: Any,
     ): T? = withHibernateContext(dispatcher) { delegate.reactiveGet(entityClass, id) }
 
     override suspend fun <T> get(
@@ -167,7 +167,6 @@ class CoroutinesStatelessSessionImpl(
     }
 
     // -- Query --
-    // TODO WARNING: all of delegate.createX check open and need withHibernateContext
     override suspend fun <R> createQuery(typedQueryReference: TypedQueryReference<R>): Coroutines.Query<R> =
         withHibernateContext(dispatcher) { CoroutinesQueryImpl(delegate.createReactiveQuery(typedQueryReference), dispatcher) }
 
