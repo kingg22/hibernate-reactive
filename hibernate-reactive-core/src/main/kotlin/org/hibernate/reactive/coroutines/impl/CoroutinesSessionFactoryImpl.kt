@@ -36,6 +36,7 @@ import org.hibernate.stat.Statistics
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
+import kotlin.coroutines.CoroutineContext
 
 @OptIn(ExperimentalContracts::class)
 class CoroutinesSessionFactoryImpl
@@ -129,7 +130,6 @@ class CoroutinesSessionFactoryImpl
                             // coroutines don't guarantee the thread
                             ReactiveSessionImpl(delegate, options, reactiveConnection)
                         }
-                    @OptIn(RequireHibernateReactiveContext::class) // Is safe pass as argument
                     CoroutinesSessionImpl(session, this@CoroutinesSessionFactoryImpl, dispatcher)
                 }
             }
@@ -155,7 +155,6 @@ class CoroutinesSessionFactoryImpl
                             // May be converted a problem because is a task check the thread
                             ReactiveStatelessSessionImpl(delegate, options, reactiveConnection)
                         }
-                    @OptIn(RequireHibernateReactiveContext::class) // Is safe pass as argument
                     CoroutinesStatelessSessionImpl(session, this@CoroutinesSessionFactoryImpl, dispatcher)
                 }
             }
@@ -172,11 +171,13 @@ class CoroutinesSessionFactoryImpl
                         // Resume the work in the hibernate context because
                         // use of the reactive Session from a different Thread than the one which was used to open the reactive Session
                         // See it on InternalStateAssertions.assertCurrentThreadMatches, used on ReactiveSessionImpl
-                        withActiveSession(current, work, contextKeyForSession)
+                        // Resume the session with his dispatcher
+                        withActiveSession(current, work, contextKeyForSession, (current as CoroutinesSessionImpl).dispatcher)
                     } else {
                         log.debug(OPENING_NEW_SESSION)
                         // Force a nonnull context?
-                        withSession(openSession(), work, contextKeyForSession)
+                        val session = openSession()
+                        withSession(session, work, contextKeyForSession, (session as CoroutinesSessionImpl).dispatcher)
                     }
                 }
             }
@@ -193,10 +194,11 @@ class CoroutinesSessionFactoryImpl
                     val current = context?.get(key)
                     if (current != null && current.isOpen()) {
                         log.debugf(REUSING_TENANT_SESSION, tenantId)
-                        withActiveSession(current, work, key)
+                        withActiveSession(current, work, key, (current as CoroutinesSessionImpl).dispatcher)
                     } else {
                         log.debugf(OPENING_NEW_TENANT_SESSION, tenantId)
-                        withSession(openSession(tenantId), work, key)
+                        val session = openSession(tenantId)
+                        withSession(session, work, key, (session as CoroutinesSessionImpl).dispatcher)
                     }
                 }
             }
@@ -209,10 +211,21 @@ class CoroutinesSessionFactoryImpl
                     val current = context?.get(contextKeyForStatelessSession)
                     if (current != null && current.isOpen()) {
                         log.debug(REUSING_STATELESS_SESSION)
-                        withActiveSession(current, work, contextKeyForStatelessSession)
+                        withActiveSession(
+                            current,
+                            work,
+                            contextKeyForStatelessSession,
+                            (current as CoroutinesStatelessSessionImpl).dispatcher,
+                        )
                     } else {
                         log.debug(OPENING_NEW_STATELESS_SESSION)
-                        withSession(openStatelessSession(), work, contextKeyForStatelessSession)
+                        val statelessSession = openStatelessSession()
+                        withSession(
+                            statelessSession,
+                            work,
+                            contextKeyForStatelessSession,
+                            (statelessSession as CoroutinesStatelessSessionImpl).dispatcher,
+                        )
                     }
                 }
             }
@@ -229,10 +242,11 @@ class CoroutinesSessionFactoryImpl
                     val current = context?.get(key)
                     if (current != null && current.isOpen()) {
                         log.debugf(REUSING_TENANT_STATELESS_SESSION, tenantId)
-                        withActiveSession(current, work, key)
+                        withActiveSession(current, work, key, (current as CoroutinesStatelessSessionImpl).dispatcher)
                     } else {
                         log.debugf(OPENING_NEW_TENANT_STATELESS_SESSION, tenantId)
-                        withSession(openStatelessSession(tenantId), work, key)
+                        val statelessSession = openStatelessSession(tenantId)
+                        withSession(statelessSession, work, key, (statelessSession as CoroutinesStatelessSessionImpl).dispatcher)
                     }
                 }
             }
@@ -251,8 +265,6 @@ class CoroutinesSessionFactoryImpl
 
         @OptIn(RequireHibernateReactiveContext::class)
         private suspend fun connection(tenantId: String?): ReactiveConnection {
-            // force checkNotNull?
-            // Workaround to await in different thread to prevent blocking the event loop
             assertUseOnEventLoop()
             val pool = checkNotNull(connectionPool)
             return if (tenantId == null) {
@@ -267,9 +279,7 @@ class CoroutinesSessionFactoryImpl
             connection: ReactiveConnection,
             supplier: () -> S,
         ): S {
-            contract {
-                callsInPlace(supplier, InvocationKind.EXACTLY_ONCE)
-            }
+            contract { callsInPlace(supplier, InvocationKind.EXACTLY_ONCE) }
             return try {
                 // ReactiveSessionImpl and ReactiveStatelessSessionImpl need to be called in event loop
                 withContext(checkNotNull(dispatcher)) { supplier() }
@@ -281,21 +291,28 @@ class CoroutinesSessionFactoryImpl
             }
         }
 
-        /** Put in context the session and delegate the rest to [withActiveSession] */
+        /** Put in context the session and delegate await to close and remove from the context */
         @OptIn(RequireHibernateReactiveContext::class)
         private suspend fun <S : Coroutines.Closeable, T> withSession(
             session: S,
             work: suspend (S) -> T,
             contextKey: Context.Key<S>,
+            contextDispatcher: CoroutineContext,
         ): T {
-            @Suppress("WRONG_INVOCATION_KIND")
-            contract {
-                callsInPlace(work, InvocationKind.EXACTLY_ONCE)
-            }
+            contract { callsInPlace(work, InvocationKind.EXACTLY_ONCE) }
             // Use hibernate context because operation with it may fail if No Vert.x context active
-            return withContext(checkNotNull(dispatcher)) {
+            return withContext(contextDispatcher) {
                 checkNotNull(context).put(contextKey, session)
-                withActiveSession(session, work, contextKey)
+                try {
+                    work(session)
+                } finally {
+                    context.remove(contextKey)
+                    try {
+                        session.close()
+                    } catch (_: Throwable) {
+                        // Only throw the original exception in case an error occurs while closing the session
+                    }
+                }
             }
         }
 
@@ -308,20 +325,19 @@ class CoroutinesSessionFactoryImpl
             session: S,
             work: suspend (S) -> T,
             contextKey: Context.Key<S>,
+            contextDispatcher: CoroutineContext,
         ): T {
             @Suppress("WRONG_INVOCATION_KIND")
-            contract {
-                callsInPlace(work, InvocationKind.EXACTLY_ONCE)
-            }
+            contract { callsInPlace(work, InvocationKind.EXACTLY_ONCE) }
             checkNotNull(context)
             checkNotNull(context[contextKey])
-            return withHibernateContext(checkNotNull(dispatcher)) {
+            return withHibernateContext(contextDispatcher) {
                 try {
                     work(session)
                 } finally {
                     context.remove(contextKey)
                     try {
-                        withContext(NonCancellable) { session.close() }
+                        session.close()
                     } catch (_: Throwable) {
                         // Only throw the original exception in case an error occurs while closing the session
                     }

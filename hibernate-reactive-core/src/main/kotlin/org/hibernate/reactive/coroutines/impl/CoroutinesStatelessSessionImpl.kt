@@ -11,7 +11,8 @@ import jakarta.persistence.criteria.CriteriaBuilder
 import jakarta.persistence.criteria.CriteriaDelete
 import jakarta.persistence.criteria.CriteriaQuery
 import jakarta.persistence.criteria.CriteriaUpdate
-import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import org.hibernate.LockMode
 import org.hibernate.graph.RootGraph
 import org.hibernate.query.criteria.JpaCriteriaInsert
@@ -27,11 +28,12 @@ import java.util.concurrent.CompletableFuture
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
+import kotlin.coroutines.CoroutineContext
 
 class CoroutinesStatelessSessionImpl(
     private val delegate: ReactiveStatelessSession,
     private val factory: CoroutinesSessionFactoryImpl,
-    val dispatcher: CoroutineDispatcher,
+    val dispatcher: CoroutineContext,
 ) : Coroutines.StatelessSession {
     // This need synchronized?
     private var currentTransaction: CoroutinesStatelessTransaction<*>? = null
@@ -159,10 +161,10 @@ class CoroutinesStatelessSessionImpl(
         }
 
     override suspend fun close() {
-        withHibernateContext(dispatcher) {
+        withContext(dispatcher + NonCancellable) {
             val closing = CompletableFuture<Void>()
             delegate.close(closing)
-            closing
+            closing.safeAwait()
         }
     }
 

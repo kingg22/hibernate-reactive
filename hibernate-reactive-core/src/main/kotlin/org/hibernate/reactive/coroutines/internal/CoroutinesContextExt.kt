@@ -7,7 +7,6 @@
 
 package org.hibernate.reactive.coroutines.internal
 
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -19,6 +18,7 @@ import java.util.concurrent.CompletionStage
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
+import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 import kotlin.experimental.ExperimentalTypeInference
 
@@ -73,9 +73,7 @@ internal suspend inline fun <T> withHibernateContext(
     context: Context,
     crossinline block: suspend () -> T,
 ): T {
-    contract {
-        callsInPlace(block, InvocationKind.EXACTLY_ONCE)
-    }
+    contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
 
     // Force coroutines context uses Vertx Context as Dispatcher
     // Don't create a new coroutine context because can change the thread and
@@ -115,7 +113,7 @@ internal suspend inline fun <T> withHibernateContext(
 @JvmSynthetic
 @OverloadResolutionByLambdaReturnType
 internal suspend inline fun <T> withHibernateContext(
-    dispatcher: CoroutineDispatcher,
+    dispatcher: CoroutineContext,
     crossinline block: suspend () -> T,
 ): T {
     contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
@@ -140,12 +138,12 @@ internal suspend inline fun <T> withHibernateContext(
  */
 @JvmSynthetic
 internal suspend inline fun <T> withHibernateContext(
-    dispatcher: CoroutineDispatcher,
+    dispatcher: CoroutineContext,
     crossinline block: () -> CompletionStage<T>,
 ): T {
     contract { callsInPlace(block, InvocationKind.EXACTLY_ONCE) }
 
-    return withContext(dispatcher + CoroutineName("HibernateReactiveSingleDispatcher")) {
+    return withContext(dispatcher + CoroutineName("HibernateReactiveDispatcherStage")) {
         safeAwait(block())
     }
 }
@@ -174,7 +172,7 @@ internal suspend inline fun <T> CompletionStage<T>.safeAwait(): T = safeAwait(th
 @JvmSynthetic
 internal suspend inline fun <T> Context.safeGet(
     key: Context.Key<T>,
-    dispatcher: CoroutineDispatcher?,
+    dispatcher: CoroutineContext?,
 ): T? =
     if (dispatcher != null) {
         withHibernateContext(dispatcher) { this[key] }

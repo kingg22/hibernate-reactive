@@ -12,7 +12,8 @@ import jakarta.persistence.criteria.CriteriaDelete
 import jakarta.persistence.criteria.CriteriaQuery
 import jakarta.persistence.criteria.CriteriaUpdate
 import jakarta.persistence.metamodel.Attribute
-import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import org.hibernate.CacheMode
 import org.hibernate.Filter
 import org.hibernate.FlushMode
@@ -32,11 +33,12 @@ import org.hibernate.reactive.util.impl.CompletionStages.applyToAll
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
+import kotlin.coroutines.CoroutineContext
 
 class CoroutinesSessionImpl(
     private val delegate: ReactiveSession,
     private val factory: CoroutinesSessionFactoryImpl,
-    val dispatcher: CoroutineDispatcher,
+    val dispatcher: CoroutineContext,
 ) : Coroutines.Session {
     // This need synchronized?
     private var currentTransaction: CoroutinesTransactionImpl<*>? = null
@@ -171,7 +173,7 @@ class CoroutinesSessionImpl(
         }
 
     override suspend fun close() {
-        withHibernateContext(dispatcher, delegate::reactiveClose)
+        withContext(dispatcher + NonCancellable) { safeAwait(delegate.reactiveClose()) }
     }
 
     override fun currentTransaction(): Coroutines.Transaction? = currentTransaction

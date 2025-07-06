@@ -9,7 +9,6 @@ package org.hibernate.reactive.coroutines
 
 import jakarta.persistence.LockModeType
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import org.hibernate.LockMode
 import org.hibernate.reactive.coroutines.impl.CoroutinesSessionImpl
@@ -95,16 +94,14 @@ suspend inline fun <T : Coroutines.Closeable, R> T.use(block: (T) -> R): R {
         cause = e
         throw e
     } finally {
-        withContext(NonCancellable) {
-            when {
-                cause == null -> close()
-                else ->
-                    try {
-                        close()
-                    } catch (closeException: Throwable) {
-                        cause.addSuppressed(closeException)
-                    }
-            }
+        when {
+            cause == null -> close()
+            else ->
+                try {
+                    close()
+                } catch (closeException: Throwable) {
+                    cause.addSuppressed(closeException)
+                }
         }
     }
 }

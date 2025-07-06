@@ -9,7 +9,6 @@ import jakarta.persistence.CacheRetrieveMode
 import jakarta.persistence.CacheStoreMode
 import jakarta.persistence.EntityGraph
 import jakarta.persistence.Parameter
-import kotlinx.coroutines.CoroutineDispatcher
 import org.hibernate.CacheMode
 import org.hibernate.FlushMode
 import org.hibernate.LockMode
@@ -18,10 +17,11 @@ import org.hibernate.graph.spi.RootGraphImplementor
 import org.hibernate.reactive.coroutines.Coroutines
 import org.hibernate.reactive.coroutines.internal.withHibernateContext
 import org.hibernate.reactive.query.ReactiveQuery
+import kotlin.coroutines.CoroutineContext
 
 class CoroutinesQueryImpl<R>(
     private val delegate: ReactiveQuery<R>,
-    private val dispatcher: CoroutineDispatcher,
+    private val dispatcher: CoroutineContext,
 ) : Coroutines.Query<R> {
     override fun setFlushMode(flushMode: FlushMode?): Coroutines.Query<R> =
         apply {
