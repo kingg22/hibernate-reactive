@@ -4,6 +4,9 @@
  */
 package org.hibernate.reactive.mutiny;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import java.lang.invoke.MethodHandles;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -64,6 +67,7 @@ import static org.hibernate.jpa.internal.util.CacheModeHelper.interpretCacheStor
  * interfaces declared here are simply non-blocking counterparts to
  * the similarly-named interfaces in Hibernate ORM.
  */
+@NullMarked
 public interface Mutiny {
 
 	/**
@@ -848,7 +852,7 @@ public interface Mutiny {
 		 *
 		 * @see jakarta.persistence.EntityManager#find(Class, Object)
 		 */
-		<T> Uni<T> find(Class<T> entityClass, Object id);
+		<T> Uni<@Nullable T> find(Class<T> entityClass, Object id);
 
 		/**
 		 * Asynchronously return the persistent instance of the given entity
@@ -863,7 +867,7 @@ public interface Mutiny {
 		 * @see #find(Class, Object)
 		 * @see #lock(Object, LockMode) this discussion of lock modes
 		 */
-		<T> Uni<T> find(Class<T> entityClass, Object id, LockMode lockMode);
+		<T> Uni<@Nullable T> find(Class<T> entityClass, Object id, LockMode lockMode);
 
 		/**
 		 * Asynchronously return the persistent instance of the given entity
@@ -878,7 +882,7 @@ public interface Mutiny {
 		 * @see #find(Class, Object)
 		 * @see #lock(Object, LockMode) this discussion of lock modes
 		 */
-		default <T> Uni<T> find(Class<T> entityClass, Object id, LockModeType lockModeType) {
+		default <T> Uni<@Nullable T> find(Class<T> entityClass, Object id, LockModeType lockModeType) {
 			return find( entityClass, id, convertToLockMode( lockModeType ) );
 		}
 
@@ -893,7 +897,7 @@ public interface Mutiny {
 		 *
 		 * @see #find(Class, Object)
 		 */
-		<T> Uni<T> find(EntityGraph<T> entityGraph, Object id);
+		<T> Uni<@Nullable T> find(EntityGraph<T> entityGraph, Object id);
 
 		/**
 		 * Asynchronously return the persistent instances of the given entity
@@ -907,7 +911,7 @@ public interface Mutiny {
 		 *
 		 * @see org.hibernate.Session#findMultiple(Class, List, FindOption...)
 		 */
-		<T> Uni<List<T>> find(Class<T> entityClass, Object... ids);
+		<T> Uni<List<@Nullable T>> find(Class<T> entityClass, Object... ids);
 
 		/**
 		 * Asynchronously return the persistent instance of the given entity
@@ -920,7 +924,7 @@ public interface Mutiny {
 		 * @return a persistent instance or null via a {@code Uni}
 		 */
 		@Incubating
-		<T> Uni<T> find(Class<T> entityClass, Identifier<T> naturalId);
+		<T> Uni<@Nullable T> find(Class<T> entityClass, Identifier<T> naturalId);
 
 		/**
 		 * Return the persistent instance of the given entity class with the
@@ -1546,6 +1550,7 @@ public interface Mutiny {
 		 * @see #withTransaction(Function)
 		 * @see SessionFactory#withTransaction(BiFunction)
 		 */
+		@Nullable
 		Transaction currentTransaction();
 
 		/**
@@ -1601,7 +1606,7 @@ public interface Mutiny {
 		 *
 		 * @see org.hibernate.StatelessSession#get(Class, Object)
 		 */
-		<T> Uni<T> get(Class<T> entityClass, Object id);
+		<T> Uni<@Nullable T> get(Class<T> entityClass, Object id);
 
 		/**
 		 * Retrieve multiple rows.
@@ -1613,7 +1618,7 @@ public interface Mutiny {
 		 *
 		 * @see org.hibernate.StatelessSession#getMultiple(Class, List)
 		 */
-		<T> Uni<List<T>> get(Class<T> entityClass, Object... ids);
+		<T> Uni<List<@Nullable T>> get(Class<T> entityClass, Object... ids);
 
 		/**
 		 * Retrieve a row, obtaining the specified lock mode.
@@ -1626,7 +1631,7 @@ public interface Mutiny {
 		 *
 		 * @see org.hibernate.StatelessSession#get(Class, Object, LockMode)
 		 */
-		<T> Uni<T> get(Class<T> entityClass, Object id, LockMode lockMode);
+		<T> Uni<@Nullable T> get(Class<T> entityClass, Object id, LockMode lockMode);
 
 		/**
 		 * Retrieve a row, obtaining the specified lock mode.
@@ -1639,7 +1644,7 @@ public interface Mutiny {
 		 *
 		 * @see org.hibernate.StatelessSession#get(Class, Object, LockMode)
 		 */
-		default <T> Uni<T> get(Class<T> entityClass, Object id, LockModeType lockModeType) {
+		default <T> Uni<@Nullable T> get(Class<T> entityClass, Object id, LockModeType lockModeType) {
 			return get( entityClass, id, convertToLockMode( lockModeType ) );
 		}
 
@@ -1652,7 +1657,7 @@ public interface Mutiny {
 		 *
 		 * @return a detached entity instance, via a {@code Uni}
 		 */
-		<T> Uni<T> get(EntityGraph<T> entityGraph, Object id);
+		<T> Uni<@Nullable T> get(EntityGraph<T> entityGraph, Object id);
 
 		/**
 		 * Insert a row.
@@ -1939,6 +1944,7 @@ public interface Mutiny {
 		 * @see #withTransaction(Function)
 		 * @see SessionFactory#withTransaction(BiFunction)
 		 */
+		@Nullable
 		Transaction currentTransaction();
 
 		/**
@@ -2376,6 +2382,7 @@ public interface Mutiny {
 		 *
 		 * @since 3.0
 		 */
+		@Nullable
 		Session getCurrentSession();
 
 		/**
@@ -2389,6 +2396,7 @@ public interface Mutiny {
 		 *
 		 * @since 3.0
 		 */
+		@Nullable
 		StatelessSession getCurrentStatelessSession();
 
 		/**
@@ -2423,7 +2431,7 @@ public interface Mutiny {
 	 *
 	 * @see org.hibernate.Hibernate#initialize(Object)
 	 */
-	static <T> Uni<T> fetch(T association) {
+	static <T> Uni<T> fetch(@Nullable T association) {
 		if ( association == null ) {
 			return Uni.createFrom().nullItem();
 		}
