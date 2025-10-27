@@ -22,7 +22,9 @@ import jakarta.persistence.EntityGraph;
 import jakarta.persistence.FlushModeType;
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.Parameter;
+import org.jspecify.annotations.NullMarked;
 
+@NullMarked
 public class StageSelectionQueryImpl<T> implements SelectionQuery<T> {
 	private final ReactiveSelectionQuery<T> delegate;
 

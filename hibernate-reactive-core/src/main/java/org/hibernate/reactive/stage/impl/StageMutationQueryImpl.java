@@ -5,11 +5,14 @@
 package org.hibernate.reactive.stage.impl;
 
 import jakarta.persistence.Parameter;
+import org.jspecify.annotations.NullMarked;
+
 import org.hibernate.reactive.query.ReactiveMutationQuery;
 import org.hibernate.reactive.stage.Stage.MutationQuery;
 
 import java.util.concurrent.CompletionStage;
 
+@NullMarked
 public class StageMutationQueryImpl<T> implements MutationQuery {
 
 	private final ReactiveMutationQuery<T> delegate;
