@@ -9,6 +9,8 @@ import org.hibernate.LockMode;
 import org.hibernate.reactive.engine.spi.ReactiveSharedSessionContractImplementor;
 
 import jakarta.persistence.EntityGraph;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -25,17 +27,18 @@ import java.util.concurrent.CompletionStage;
  * @see org.hibernate.reactive.mutiny.Mutiny.Session
  */
 @Incubating
+@NullMarked
 public interface ReactiveStatelessSession extends ReactiveQueryProducer, ReactiveSharedSessionContractImplementor {
 
-	<T> CompletionStage<T> reactiveGet(Class<T> entityClass, Object id);
+	<T> CompletionStage<@Nullable T> reactiveGet(Class<T> entityClass, Object id);
 
-	<T> CompletionStage<List<T>> reactiveGet(Class<T> entityClass, Object... id);
+	<T> CompletionStage<List<@Nullable T>> reactiveGet(Class<T> entityClass, Object... id);
 
-	<T> CompletionStage<T> reactiveGet(String entityName, Object id);
+	<T> CompletionStage<@Nullable T> reactiveGet(String entityName, Object id);
 
-	<T> CompletionStage<T> reactiveGet(Class<T> entityClass, Object id, LockMode lockMode, EntityGraph<T> fetchGraph);
+	<T> CompletionStage<@Nullable T> reactiveGet(Class<T> entityClass, Object id, @Nullable LockMode lockMode, @Nullable EntityGraph<T> fetchGraph);
 
-	<T> CompletionStage<T> reactiveGet(String entityName, Object id, LockMode lockMode, EntityGraph<T> fetchGraph);
+	<T> CompletionStage<@Nullable T> reactiveGet(String entityName, Object id, @Nullable LockMode lockMode, @Nullable EntityGraph<T> fetchGraph);
 
 	CompletionStage<Void> reactiveInsert(Object entity);
 
@@ -69,7 +72,7 @@ public interface ReactiveStatelessSession extends ReactiveQueryProducer, Reactiv
 
 	boolean isOpen();
 
-	void close(CompletableFuture<Void> closing);
+	void close(CompletableFuture<@Nullable Void> closing);
 
 	Object getIdentifier(Object entity);
 }
