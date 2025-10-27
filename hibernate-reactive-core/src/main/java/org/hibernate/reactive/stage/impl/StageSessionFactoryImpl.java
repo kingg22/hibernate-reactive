@@ -6,6 +6,9 @@
 package org.hibernate.reactive.stage.impl;
 
 import jakarta.persistence.metamodel.Metamodel;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import org.hibernate.Cache;
 import org.hibernate.engine.creation.internal.SessionBuilderImpl;
 import org.hibernate.engine.creation.internal.SessionCreationOptions;
@@ -43,6 +46,7 @@ import static org.hibernate.reactive.util.impl.CompletionStages.voidFuture;
  * <p>
  * Obtained by calling {@link org.hibernate.SessionFactory#unwrap(Class)}.
  */
+@NullMarked
 public class StageSessionFactoryImpl implements Stage.SessionFactory, Implementor {
 
 	private static final Log LOG = LoggerFactory.make( Log.class, MethodHandles.lookup() );
@@ -55,8 +59,8 @@ public class StageSessionFactoryImpl implements Stage.SessionFactory, Implemento
 
 	public StageSessionFactoryImpl(SessionFactoryImpl delegate) {
 		this.delegate = delegate;
-		context = delegate.getServiceRegistry().getService( Context.class );
-		connectionPool = delegate.getServiceRegistry().getService( ReactiveConnectionPool.class );
+		context = delegate.getServiceRegistry().requireService( Context.class );
+		connectionPool = delegate.getServiceRegistry().requireService( ReactiveConnectionPool.class );
 		contextKeyForSession = new BaseKey<>( Stage.Session.class, delegate.getUuid() );
 		contextKeyForStatelessSession = new BaseKey<>( Stage.StatelessSession.class, delegate.getUuid() );
 	}
@@ -149,19 +153,19 @@ public class StageSessionFactoryImpl implements Stage.SessionFactory, Implemento
 		};
 	}
 
-	private CompletionStage<ReactiveConnection> connection(String tenantId) {
+	private CompletionStage<ReactiveConnection> connection(@Nullable String tenantId) {
 		return tenantId == null
 				? connectionPool.getConnection()
 				: connectionPool.getConnection( tenantId );
 	}
 
 	@Override
-	public Stage.Session getCurrentSession() {
+	public Stage.@Nullable Session getCurrentSession() {
 		return context.get( contextKeyForSession );
 	}
 
 	@Override
-	public Stage.StatelessSession getCurrentStatelessSession() {
+	public Stage.@Nullable StatelessSession getCurrentStatelessSession() {
 		return context.get( contextKeyForStatelessSession );
 	}
 
@@ -240,7 +244,7 @@ public class StageSessionFactoryImpl implements Stage.SessionFactory, Implemento
 					// and still be able to close the session in case of errors
 					.thenCompose( v -> work.apply( session ) )
 					.handle( this::handler )
-					.thenCompose( handler -> {
+					.thenCompose( (Function<@Nullable Void, T> handler) -> {
 						context.remove( contextKey );
 						return session.close()
 								// Using .handle (instead of .thenApply(handler) because
@@ -251,7 +255,7 @@ public class StageSessionFactoryImpl implements Stage.SessionFactory, Implemento
 		} );
 	}
 
-	private <T> Function<Void, T> handler(T result, Throwable exception) {
+	private <T> Function<@Nullable Void, T> handler(T result, @Nullable Throwable exception) {
 		return exception == null ? v -> result : v -> rethrow(exception);
 	}
 
@@ -305,6 +309,7 @@ public class StageSessionFactoryImpl implements Stage.SessionFactory, Implemento
 		return delegate.getCriteriaBuilder();
 	}
 
+	@Nullable
 	private String getTenantIdentifier(SessionCreationOptions options) {
 		return options.getTenantIdentifierValue() == null ? null : delegate.getTenantIdentifierJavaType().toString(
 				options.getTenantIdentifierValue() );
