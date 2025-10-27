@@ -49,6 +49,8 @@ import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.CriteriaUpdate;
 import jakarta.persistence.metamodel.Attribute;
 import jakarta.persistence.metamodel.Metamodel;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import static org.hibernate.engine.internal.ManagedTypeHelper.asPersistentAttributeInterceptable;
 import static org.hibernate.engine.internal.ManagedTypeHelper.isPersistentAttributeInterceptable;
@@ -65,6 +67,7 @@ import static org.hibernate.jpa.internal.util.CacheModeHelper.interpretCacheStor
  * interfaces declared here are simply non-blocking counterparts to
  * the similarly-named interfaces in Hibernate ORM.
  */
+@NullMarked
 public interface Stage {
 
 	/**
@@ -850,7 +853,7 @@ public interface Stage {
 		 *
 		 * @see jakarta.persistence.EntityManager#find(Class, Object)
 		 */
-		<T> CompletionStage<T> find(Class<T> entityClass, Object id);
+		<T> CompletionStage<@Nullable T> find(Class<T> entityClass, Object id);
 
 		/**
 		 * Asynchronously return the persistent instance of the given entity
@@ -865,7 +868,7 @@ public interface Stage {
 		 * @see #find(Class,Object)
 		 * @see #lock(Object, LockMode) this discussion of lock modes
 		 */
-		<T> CompletionStage<T> find(Class<T> entityClass, Object id, LockMode lockMode);
+		<T> CompletionStage<@Nullable T> find(Class<T> entityClass, Object id, LockMode lockMode);
 
 		/**
 		 * Asynchronously return the persistent instance of the given entity
@@ -880,7 +883,7 @@ public interface Stage {
 		 * @see #find(Class,Object)
 		 * @see #lock(Object, LockMode) this discussion of lock modes
 		 */
-		default <T> CompletionStage<T> find(Class<T> entityClass, Object id, LockModeType lockModeType) {
+		default <T> CompletionStage<@Nullable T> find(Class<T> entityClass, Object id, LockModeType lockModeType) {
 			return find( entityClass, id, convertToLockMode(lockModeType) );
 		}
 
@@ -895,7 +898,7 @@ public interface Stage {
 		 *
 		 * @see #find(Class,Object)
 		 */
-		<T> CompletionStage<T> find(EntityGraph<T> entityGraph, Object id);
+		<T> CompletionStage<@Nullable T> find(EntityGraph<T> entityGraph, Object id);
 
 		/**
 		 * Asynchronously return the persistent instances of the given entity
@@ -907,7 +910,7 @@ public interface Stage {
 		 *
 		 * @return a list of persistent instances and nulls via a {@code CompletionStage}
 		 */
-		<T> CompletionStage<List<T>> find(Class<T> entityClass, Object... ids);
+		<T> CompletionStage<List<@Nullable T>> find(Class<T> entityClass, Object... ids);
 
 		/**
 		 * Asynchronously return the persistent instance of the given entity
@@ -920,7 +923,7 @@ public interface Stage {
 		 * @return a persistent instance or null via a {@code CompletionStage}
 		 */
 		@Incubating
-		<T> CompletionStage<T> find(Class<T> entityClass, Identifier<T> naturalId);
+		<T> CompletionStage<@Nullable T> find(Class<T> entityClass, Identifier<T> naturalId);
 
 		/**
 		 * Return the persistent instance of the given entity class with the
@@ -1512,6 +1515,7 @@ public interface Stage {
 		 * @see #withTransaction(Function)
 		 * @see SessionFactory#withTransaction(BiFunction)
 		 */
+		@Nullable
 		Transaction currentTransaction();
 
 		/**
@@ -1567,7 +1571,7 @@ public interface Stage {
 		 *
 		 * @see org.hibernate.StatelessSession#get(Class, Object)
 		 */
-		<T> CompletionStage<T> get(Class<T> entityClass, Object id);
+		<T> CompletionStage<@Nullable T> get(Class<T> entityClass, Object id);
 
 		/**
 		 * Retrieve multiple rows.
@@ -1579,7 +1583,7 @@ public interface Stage {
 		 *
 		 * @see org.hibernate.StatelessSession#getMultiple(Class, List)
 		 */
-		<T> CompletionStage<List<T>> get(Class<T> entityClass, Object... ids);
+		<T> CompletionStage<List<@Nullable T>> get(Class<T> entityClass, Object... ids);
 
 		/**
 		 * Retrieve a row, obtaining the specified lock mode.
@@ -1592,7 +1596,7 @@ public interface Stage {
 		 *
 		 * @see org.hibernate.StatelessSession#get(Class, Object, LockMode)
 		 */
-		<T> CompletionStage<T> get(Class<T> entityClass, Object id, LockMode lockMode);
+		<T> CompletionStage<@Nullable T> get(Class<T> entityClass, Object id, LockMode lockMode);
 
 		/**
 		 * Retrieve a row, obtaining the specified lock mode.
@@ -1605,7 +1609,7 @@ public interface Stage {
 		 *
 		 * @see org.hibernate.StatelessSession#get(Class, Object, LockMode)
 		 */
-		default <T> CompletionStage<T> get(Class<T> entityClass, Object id, LockModeType lockModeType) {
+		default <T> CompletionStage<@Nullable T> get(Class<T> entityClass, Object id, LockModeType lockModeType) {
 			return get( entityClass, id, convertToLockMode(lockModeType) );
 		}
 
@@ -1618,7 +1622,7 @@ public interface Stage {
 		 *
 		 * @return a detached entity instance, via a {@code CompletionStage}
 		 */
-		<T> CompletionStage<T> get(EntityGraph<T> entityGraph, Object id);
+		<T> CompletionStage<@Nullable T> get(EntityGraph<T> entityGraph, Object id);
 
 		/**
 		 * Insert a row.
@@ -1902,6 +1906,7 @@ public interface Stage {
 		 * @see #withTransaction(Function)
 		 * @see SessionFactory#withTransaction(BiFunction)
 		 */
+		@Nullable
 		Transaction currentTransaction();
 
 		/**
@@ -1913,7 +1918,7 @@ public interface Stage {
 		 * Close the reactive session and release the underlying database
 		 * connection.
 		 */
-		CompletionStage<Void> close();
+		CompletionStage<@Nullable Void> close();
 
 		/**
 		 * The {@link SessionFactory} which created this session.
@@ -2290,6 +2295,7 @@ public interface Stage {
 		 *
 		 * @since 3.0
 		 */
+		@Nullable
 		Session getCurrentSession();
 
 		/**
@@ -2303,6 +2309,7 @@ public interface Stage {
 		 *
 		 * @since 3.0
 		 */
+		@Nullable
 		StatelessSession getCurrentStatelessSession();
 
 		/**
@@ -2321,7 +2328,7 @@ public interface Stage {
 	 * An object whose {@link #close()} method returns a {@link CompletionStage}.
 	 */
 	interface Closeable {
-		CompletionStage<Void> close();
+		CompletionStage<@Nullable Void> close();
 	}
 
 	/**
@@ -2337,7 +2344,7 @@ public interface Stage {
 	 *
 	 * @see org.hibernate.Hibernate#initialize(Object)
 	 */
-	static <T> CompletionStage<T> fetch(T association) {
+	static <T> CompletionStage<T> fetch(@Nullable T association) {
 		if ( association == null ) {
 			return CompletionStages.nullFuture();
 		}
