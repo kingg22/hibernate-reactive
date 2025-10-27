@@ -1,0 +1,53 @@
+plugins {
+	// we assume you are already using the Java plugin
+
+	// can't use alias libs.plugins... here
+	id( "net.ltgt.errorprone" )
+	id( "net.ltgt.nullaway" )
+}
+
+dependencies {
+	// https://github.com/uber/NullAway/releases
+	errorprone( libs.uber.nullaway )
+
+	// Some source of nullability annotations; JSpecify recommended,
+	// but others supported as well.
+	api( libs.jspecify.annotations )
+
+	// https://github.com/google/error-prone/releases
+	// Required, but disable checks for this plugin
+	errorprone( "com.google.errorprone:error_prone_core:2.43.0" )
+}
+
+tasks.withType( JavaCompile ).configureEach {
+	if ( it.name.toLowerCase().contains("test") ) {
+		options.errorprone.enabled = false
+	}
+	options.errorprone {
+		// Disable all warnings in generated code with @Generated
+		disableWarningsInGeneratedCode.set(true)
+
+		// error prone core = warnings
+		errorproneArgs.add("-XepAllErrorsAsWarnings")
+
+		nullaway {
+			// Raise errors when null check fails
+			error()
+			// Configuration options https://github.com/uber/NullAway/wiki/Configuration
+
+			// Progressive adoption of null check only class/interfaces/packages with @NullMarked
+			onlyNullMarked.set(true)
+			// Generated code with @Generated annotation is not checked
+			treatGeneratedAsUnannotated.set(true)
+			// For advanced contracts like null->null (first parameter null, return null, otherwise not null)
+			checkContracts.set(true)
+			// When use java.util.Optional
+			checkOptionalEmptiness.set(true)
+			// disable force override annotation because current code it's not 100% annotated
+			exhaustiveOverride.set(false)
+			// Use jspecify specification https://jspecify.dev/docs/spec/
+			// User guide https://jspecify.dev/docs/user-guide/
+			jspecifyMode.set(true)
+		}
+	}
+}
