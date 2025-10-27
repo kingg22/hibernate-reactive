@@ -2,6 +2,7 @@ plugins {
     id "hr-java-library"
     id "hr-test-containers"
     id "hr-print-resolved-version"
+	id "hr-null-check"
 }
 
 ext {
