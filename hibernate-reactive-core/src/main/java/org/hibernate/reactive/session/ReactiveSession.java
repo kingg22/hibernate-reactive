@@ -27,6 +27,8 @@ import org.hibernate.reactive.engine.spi.ReactiveSharedSessionContractImplemento
 
 import jakarta.persistence.EntityGraph;
 import jakarta.persistence.metamodel.Attribute;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A contract with the Hibernate session backing the user-visible
@@ -39,6 +41,7 @@ import jakarta.persistence.metamodel.Attribute;
  *  @see org.hibernate.reactive.mutiny.Mutiny.Session
  */
 @Incubating
+@NullMarked
 public interface ReactiveSession extends ReactiveQueryProducer, ReactiveSharedSessionContractImplementor {
 
 	ReactiveActionQueue getReactiveActionQueue();
@@ -90,20 +93,20 @@ public interface ReactiveSession extends ReactiveQueryProducer, ReactiveSharedSe
 
 	<T> CompletionStage<T> reactiveGet(Class<T> entityClass, Object id);
 
-	<T> CompletionStage<T> reactiveFind(Class<T> entityClass, Object id, LockOptions lockOptions, EntityGraph<T> fetchGraph);
+	<T> CompletionStage<@Nullable T> reactiveFind(Class<T> entityClass, Object id, @Nullable LockOptions lockOptions, @Nullable EntityGraph<T> fetchGraph);
 
-	default <T> CompletionStage<T> reactiveFind(Class<T> entityClass, Object id){
+	default <T> CompletionStage<@Nullable T> reactiveFind(Class<T> entityClass, Object id){
 		return reactiveFind( entityClass, id, (LockOptions) null, null );
 	}
 
-	default <T> CompletionStage<T> reactiveFind(Class<T> entityClass, Object id, LockMode lockMode, EntityGraph<T> fetchGraph ){
+	default <T> CompletionStage<@Nullable T> reactiveFind(Class<T> entityClass, Object id, LockMode lockMode, @Nullable EntityGraph<T> fetchGraph ){
 		return reactiveFind( entityClass, id, new LockOptions( lockMode ), fetchGraph );
 	}
 
 
-	<T> CompletionStage<List<T>> reactiveFind(Class<T> entityClass, Object... ids);
+	<T> CompletionStage<List<@Nullable T>> reactiveFind(Class<T> entityClass, Object... ids);
 
-	<T> CompletionStage<T> reactiveFind(Class<T> entityClass, Map<String,Object> naturalIds);
+	<T> CompletionStage<@Nullable T> reactiveFind(Class<T> entityClass, Map<String,Object> naturalIds);
 
 	CompletionStage<Void> reactiveRemoveOrphanBeforeUpdates(String entityName, Object child);
 
@@ -156,5 +159,5 @@ public interface ReactiveSession extends ReactiveQueryProducer, ReactiveSharedSe
 	boolean isOpen();
 
 	// Different approach so that we can overload the method in SessionImpl
-	CompletionStage<Void> reactiveClose();
+	CompletionStage<@Nullable Void> reactiveClose();
 }
