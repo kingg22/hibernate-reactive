@@ -8,6 +8,9 @@ import org.hibernate.service.Service;
 
 import java.util.concurrent.Executor;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 /**
  * Abstracts away from the Vert.x {@link io.vertx.core.Context}
  * object, enabling alternative strategies for associating state
@@ -15,6 +18,7 @@ import java.util.concurrent.Executor;
  *
  * @author Gavin King
  */
+@NullMarked
 public interface Context extends Executor, Service {
 
     /**
@@ -26,6 +30,7 @@ public interface Context extends Executor, Service {
      * Get a value associated with the current reactive stream,
      * or return null.
      */
+	@Nullable
     <T> T get(Key<T> key);
 
     /**
