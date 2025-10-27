@@ -23,6 +23,9 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaDelete;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.CriteriaUpdate;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -36,6 +39,7 @@ import static org.hibernate.reactive.util.impl.CompletionStages.voidFuture;
  * class is needed to avoid name clashes when implementing both
  * {@code StatelessSession} and {@link org.hibernate.StatelessSession}.
  */
+@NullMarked
 public class StageStatelessSessionImpl implements Stage.StatelessSession {
 
 	private final ReactiveStatelessSession delegate;
@@ -49,17 +53,17 @@ public class StageStatelessSessionImpl implements Stage.StatelessSession {
 	}
 
 	@Override
-	public <T> CompletionStage<T> get(Class<T> entityClass, Object id) {
+	public <T> CompletionStage<@Nullable T> get(Class<T> entityClass, Object id) {
 		return delegate.reactiveGet( entityClass, id );
 	}
 
 	@Override
-	public <T> CompletionStage<List<T>> get(Class<T> entityClass, Object... ids) {
+	public <T> CompletionStage<List<@Nullable T>> get(Class<T> entityClass, Object... ids) {
 		return delegate.reactiveGet( entityClass, ids );
 	}
 
 	@Override
-	public <T> CompletionStage<T> get(Class<T> entityClass, Object id, LockMode lockMode) {
+	public <T> CompletionStage<@Nullable T> get(Class<T> entityClass, Object id, LockMode lockMode) {
 		return delegate.reactiveGet( entityClass, id, lockMode, null );
 	}
 
@@ -196,8 +200,8 @@ public class StageStatelessSessionImpl implements Stage.StatelessSession {
 	}
 
 	@Override
-	public CompletionStage<Void> close() {
-		CompletableFuture<Void> closing = new CompletableFuture<>();
+	public CompletionStage<@Nullable Void> close() {
+		CompletableFuture<@Nullable Void> closing = new CompletableFuture<>();
 		delegate.close( closing );
 		return closing;
 	}
@@ -217,16 +221,17 @@ public class StageStatelessSessionImpl implements Stage.StatelessSession {
 		return getFactory().getCriteriaBuilder();
 	}
 
+	@Nullable
 	private Transaction<?> currentTransaction;
 
 	@Override
-	public Stage.Transaction currentTransaction() {
+	public Stage.@Nullable Transaction currentTransaction() {
 		return currentTransaction;
 	}
 
 	private class Transaction<T> implements Stage.Transaction {
 		boolean rollback;
-		Throwable error;
+		@Nullable Throwable error;
 
 		CompletionStage<T> execute(Function<Stage.Transaction, CompletionStage<T>> work) {
 			currentTransaction = this;
@@ -267,7 +272,7 @@ public class StageStatelessSessionImpl implements Stage.StatelessSession {
 			return rollback ? c.rollbackTransaction() : c.commitTransaction();
 		}
 
-		<R> R processError(R result, Throwable e) {
+		<R> R processError(R result, @Nullable Throwable e) {
 			if ( e != null ) {
 				rollback = true;
 				if ( error == null ) {
@@ -292,7 +297,7 @@ public class StageStatelessSessionImpl implements Stage.StatelessSession {
 	}
 
 	@Override
-	public <T> CompletionStage<T> get(EntityGraph<T> entityGraph, Object id) {
+	public <T> CompletionStage<@Nullable T> get(EntityGraph<T> entityGraph, Object id) {
 		Class<T> entityClass = ( (RootGraphImplementor<T>) entityGraph ).getGraphedType().getJavaType();
 		return delegate.reactiveGet( entityClass, id, null, entityGraph );
 	}
