@@ -16,6 +16,9 @@ import jakarta.persistence.criteria.CriteriaDelete;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.CriteriaUpdate;
 import jakarta.persistence.metamodel.Attribute;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import org.hibernate.*;
 import org.hibernate.query.criteria.JpaCriteriaInsert;
 import org.hibernate.reactive.common.AffectedEntities;
@@ -31,27 +34,28 @@ import java.util.function.Function;
  *
  * @author Gavin King
  */
+@NullMarked
 public abstract class MutinySessionDelegator implements Mutiny.Session {
 
     public abstract Mutiny.Session delegate();
 
-    public <T> Uni<T> find(Class<T> entityClass, Object id) {
+    public <T> Uni<@Nullable T> find(Class<T> entityClass, Object id) {
         return delegate().find(entityClass, id);
     }
 
-    public <T> Uni<T> find(Class<T> entityClass, Object id, LockModeType lockModeType) {
+    public <T> Uni<@Nullable T> find(Class<T> entityClass, Object id, LockModeType lockModeType) {
         return delegate().find(entityClass, id, lockModeType);
     }
 
-    public <T> Uni<T> find(Class<T> entityClass, Object id, LockMode lockMode) {
+    public <T> Uni<@Nullable T> find(Class<T> entityClass, Object id, LockMode lockMode) {
         return delegate().find(entityClass, id, lockMode);
     }
 
-    public <T> Uni<T> find(EntityGraph<T> entityGraph, Object id) {
+    public <T> Uni<@Nullable T> find(EntityGraph<T> entityGraph, Object id) {
         return delegate().find(entityGraph, id);
     }
 
-    public <T> Uni<List<T>> find(Class<T> entityClass, Object... ids) {
+    public <T> Uni<List<@Nullable T>> find(Class<T> entityClass, Object... ids) {
         return delegate().find(entityClass, ids);
     }
 
@@ -120,7 +124,7 @@ public abstract class MutinySessionDelegator implements Mutiny.Session {
     }
 
     @Incubating
-    public <T> Uni<T> find(Class<T> entityClass, Identifier<T> naturalId) {
+    public <T> Uni<@Nullable T> find(Class<T> entityClass, Identifier<T> naturalId) {
         return delegate().find(entityClass, naturalId);
     }
 
@@ -136,7 +140,7 @@ public abstract class MutinySessionDelegator implements Mutiny.Session {
         return delegate().createEntityGraph(rootType, graphName);
     }
 
-    public Mutiny.Transaction currentTransaction() {
+	public Mutiny.@Nullable Transaction currentTransaction() {
         return delegate().currentTransaction();
     }
 

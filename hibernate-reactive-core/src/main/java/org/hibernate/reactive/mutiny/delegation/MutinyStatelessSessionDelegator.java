@@ -12,6 +12,9 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaDelete;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.CriteriaUpdate;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import org.hibernate.Incubating;
 import org.hibernate.LockMode;
 import org.hibernate.query.criteria.JpaCriteriaInsert;
@@ -27,11 +30,12 @@ import java.util.function.Function;
  *
  * @author Gavin King
  */
+@NullMarked
 public abstract class MutinyStatelessSessionDelegator implements Mutiny.StatelessSession {
 
     public abstract Mutiny.StatelessSession delegate();
 
-    public <T> Uni<T> get(Class<T> entityClass, Object id) {
+    public <T> Uni<@Nullable T> get(Class<T> entityClass, Object id) {
         return delegate().get(entityClass, id);
     }
 
@@ -40,11 +44,11 @@ public abstract class MutinyStatelessSessionDelegator implements Mutiny.Stateles
         return delegate().createQuery(queryString);
     }
 
-    public <T> Uni<T> get(EntityGraph<T> entityGraph, Object id) {
+    public <T> Uni<@Nullable T> get(EntityGraph<T> entityGraph, Object id) {
         return delegate().get(entityGraph, id);
     }
 
-    public <T> Uni<List<T>> get(Class<T> entityClass, Object... ids) {
+    public <T> Uni<List<@Nullable T>> get(Class<T> entityClass, Object... ids) {
         return delegate().get(entityClass, ids);
     }
 
@@ -56,7 +60,7 @@ public abstract class MutinyStatelessSessionDelegator implements Mutiny.Stateles
         return delegate().getIdentifier(entity);
     }
 
-    public <T> Uni<T> get(Class<T> entityClass, Object id, LockMode lockMode) {
+    public <T> Uni<@Nullable T> get(Class<T> entityClass, Object id, LockMode lockMode) {
         return delegate().get(entityClass, id, lockMode);
     }
 
@@ -84,7 +88,7 @@ public abstract class MutinyStatelessSessionDelegator implements Mutiny.Stateles
         return delegate().getEntityGraph(rootType, graphName);
     }
 
-    public <T> Uni<T> get(Class<T> entityClass, Object id, LockModeType lockModeType) {
+    public <T> Uni<@Nullable T> get(Class<T> entityClass, Object id, LockModeType lockModeType) {
         return delegate().get(entityClass, id, lockModeType);
     }
 
@@ -215,7 +219,7 @@ public abstract class MutinyStatelessSessionDelegator implements Mutiny.Stateles
         return delegate().upsertAll(entities);
     }
 
-    public Mutiny.Transaction currentTransaction() {
+    public Mutiny.@Nullable Transaction currentTransaction() {
         return delegate().currentTransaction();
     }
 
