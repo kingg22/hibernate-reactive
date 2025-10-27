@@ -5,6 +5,8 @@ plugins {
     id 'maven-publish'
     alias(libs.plugins.com.diffplug.spotless)
     alias(libs.plugins.org.asciidoctor.jvm.convert) apply false
+	alias(libs.plugins.error.prone) apply false
+	alias(libs.plugins.nullaway) apply false
 }
 
 group = "org.hibernate.reactive"
