@@ -40,6 +40,9 @@ import jakarta.persistence.criteria.CriteriaDelete;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.CriteriaUpdate;
 import jakarta.persistence.metamodel.Attribute;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
@@ -53,6 +56,7 @@ import static org.hibernate.reactive.util.impl.CompletionStages.voidFuture;
  * needed to avoid name clashes when implementing both
  * {@code Session} and {@link org.hibernate.Session}.
  */
+@NullMarked
 public class StageSessionImpl implements Stage.Session {
 
 	private final ReactiveSession delegate;
@@ -133,38 +137,38 @@ public class StageSessionImpl implements Stage.Session {
 	}
 
 	@Override
-	public <T> CompletionStage<T> find(Class<T> entityClass, Object primaryKey) {
+	public <T> CompletionStage<@Nullable T> find(Class<T> entityClass, Object primaryKey) {
 		return delegate.reactiveFind( entityClass, primaryKey );
 	}
 
 	@Override
-	public <T> CompletionStage<List<T>> find(Class<T> entityClass, Object... ids) {
+	public <T> CompletionStage<List<@Nullable T>> find(Class<T> entityClass, Object... ids) {
 		return delegate.reactiveFind( entityClass, ids );
 	}
 
 	@Override
-	public <T> CompletionStage<T> find(Class<T> entityClass, Identifier<T> id) {
+	public <T> CompletionStage<@Nullable T> find(Class<T> entityClass, Identifier<T> id) {
 		return delegate.reactiveFind( entityClass, id.namedValues() );
 	}
 
 	@Override
-	public <T> CompletionStage<T> find(Class<T> entityClass, Object primaryKey, LockMode lockMode) {
+	public <T> CompletionStage<@Nullable T> find(Class<T> entityClass, Object primaryKey, LockMode lockMode) {
 		return delegate.reactiveFind( entityClass, primaryKey, lockMode, null );
 	}
 
 	@Override
-	public <T> CompletionStage<T> find(Class<T> entityClass, Object id, LockModeType lockModeType) {
+	public <T> CompletionStage<@Nullable T> find(Class<T> entityClass, Object id, LockModeType lockModeType) {
 		return find( entityClass, id, LockModeTypeHelper.getLockMode( lockModeType ) );
 	}
 
 	// FIXME: Should I delete this?
 //	@Override
-	public <T> CompletionStage<T> find(Class<T> entityClass, Object primaryKey, LockOptions lockOptions) {
+	public <T> CompletionStage<@Nullable T> find(Class<T> entityClass, Object primaryKey, LockOptions lockOptions) {
 		return delegate.reactiveFind( entityClass, primaryKey, lockOptions, null );
 	}
 
 	@Override
-	public <T> CompletionStage<T> find(EntityGraph<T> entityGraph, Object id) {
+	public <T> CompletionStage<@Nullable T> find(EntityGraph<T> entityGraph, Object id) {
 		Class<T> entityClass = ( (RootGraph<T>) entityGraph ).getGraphedType().getJavaType();
 		return delegate.reactiveFind( entityClass, id, (LockOptions) null, entityGraph );
 	}
@@ -393,16 +397,17 @@ public class StageSessionImpl implements Stage.Session {
 		return currentTransaction == null ? new Transaction<T>().execute( work ) : work.apply( currentTransaction );
 	}
 
+	@Nullable
 	private Transaction<?> currentTransaction;
 
 	@Override
-	public Stage.Transaction currentTransaction() {
+	public Stage.@Nullable Transaction currentTransaction() {
 		return currentTransaction;
 	}
 
 	private class Transaction<T> implements Stage.Transaction {
 		boolean rollback;
-		Throwable error;
+		@Nullable Throwable error;
 
 		CompletionStage<T> execute(Function<Stage.Transaction, CompletionStage<T>> work) {
 			currentTransaction = this;
@@ -452,7 +457,7 @@ public class StageSessionImpl implements Stage.Session {
 					.thenCompose( v -> actionQueue.afterTransactionCompletion( !rollback ) );
 		}
 
-		<R> R processError(R result, Throwable e) {
+		<R> R processError(R result, @Nullable Throwable e) {
 			if ( e!=null ) {
 				rollback = true;
 				if (error == null) {
@@ -477,7 +482,7 @@ public class StageSessionImpl implements Stage.Session {
 	}
 
 	@Override
-	public CompletionStage<Void> close() {
+	public CompletionStage<@Nullable Void> close() {
 		return delegate.reactiveClose();
 	}
 
