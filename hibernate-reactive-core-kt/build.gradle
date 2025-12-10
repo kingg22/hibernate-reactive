@@ -13,7 +13,19 @@ plugins {
 
 dependencies {
 	api(project(":hibernate-reactive-core"))
+
+	// Logging
+	implementation(libs.org.jboss.logging.jboss.logging)
+	annotationProcessor(libs.org.jboss.logging.jboss.logging)
+
+	compileOnly(libs.org.jboss.logging.jboss.logging.annotations)
+	annotationProcessor(libs.org.jboss.logging.jboss.logging.annotations)
+	annotationProcessor(libs.org.jboss.logging.jboss.logging.processor)
+
+	// Coroutines
 	api(libs.kotlinx.coroutines)
+
+	// Testing
 	testImplementation(libs.kotlinx.coroutines.test)
 }
 
