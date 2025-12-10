@@ -5,6 +5,8 @@ plugins {
     id 'maven-publish'
     alias(libs.plugins.com.diffplug.spotless)
     alias(libs.plugins.org.asciidoctor.jvm.convert) apply false
+	alias(libs.plugins.kotlin.jvm) apply false
+	alias(libs.plugins.kotlin.all.open) apply false
 }
 
 group = "org.hibernate.reactive"
@@ -12,9 +14,7 @@ group = "org.hibernate.reactive"
 version = project.projectVersion.fullName
 
 rootProject.afterEvaluate {
-    // Workaround since "libs.versions.NAME" notation cannot be used here
-    def libs = project.extensions.getByType(VersionCatalogsExtension).named('libs')
-    logger.lifecycle "ORM version: ${libs.findVersion('hibernateOrmVersion').get().requiredVersion}"
-    logger.lifecycle "ORM Gradle plugin version: ${libs.findVersion('hibernateOrmGradlePluginVersion').get().requiredVersion}"
-    logger.lifecycle "Vert.x SQL Client version: ${libs.findVersion('vertxSqlClientVersion').get().requiredVersion}"
+    logger.lifecycle "ORM version: ${libs.versions.hibernateOrmVersion.get()}"
+    logger.lifecycle "ORM Gradle plugin version: ${libs.versions.hibernateOrmGradlePluginVersion.get()}"
+    logger.lifecycle "Vert.x SQL Client version: ${libs.versions.vertxSqlClientVersion.get()}"
 }
