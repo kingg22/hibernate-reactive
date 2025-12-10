@@ -1885,6 +1885,63 @@ interface Coroutines {
     @SubclassOptInRequired(DelicateHibernateReactiveCoroutineApi::class)
     interface SessionFactory : AutoCloseable {
         /**
+         * Obtain a new [reactive session][Session].
+         *
+         *
+         * The underlying database connection is obtained lazily
+         * when the returned [Session] needs to access the
+         * database.
+         *
+         *
+         * The client must close the session using [Session.close].
+         */
+        @Incubating
+        fun createSession(): Session
+
+        /**
+         * Obtain a new [reactive session][Session].
+         *
+         *
+         * The underlying database connection is obtained lazily
+         * when the returned [Session] needs to access the
+         * database.
+         *
+         *
+         * The client must close the session using [Session.close].
+         */
+        @Incubating
+        fun createSession(tenantId: String?): Session
+
+        /**
+         * Obtain a new [reactive session][Session].
+         *
+         *
+         * The underlying database connection is obtained lazily
+         * when the returned [Session] needs to access the
+         * database.
+         *
+         *
+         * The client must close the session using [Session.close].
+         */
+        @Incubating
+        fun createStatelessSession(): StatelessSession
+
+        /**
+         * Obtain a new [reactive stateless session][StatelessSession].
+         *
+         *
+         * The underlying database connection is obtained lazily
+         * when the returned [StatelessSession] needs to access the
+         * database.
+         *
+         *
+         * The client must close the session using [Session.close].
+         * @param tenantId the id of the tenant
+         */
+        @Incubating
+        fun createStatelessSession(tenantId: String?): StatelessSession
+
+        /**
          * Obtain a new [reactive session][Session], the main interaction point between the user's program and
          * Hibernate Reactive.
          *
