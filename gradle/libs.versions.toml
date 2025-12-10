@@ -7,6 +7,8 @@ jbossLoggingAnnotationVersion = "3.0.4.Final"
 jbossLoggingVersion = "3.6.1.Final"
 junitVersion = "6.0.1"
 junitPlatformVersion = "1.13.3"
+kotlin = "2.2.21"
+kotlinx-coroutines = "1.10.2"
 log4jVersion = "2.25.2"
 testcontainersVersion = "1.21.3"
 vertxSqlClientVersion = "5.0.5"
@@ -30,6 +32,8 @@ io-vertx-vertx-pg-client = { group = "io.vertx", name = "vertx-pg-client", versi
 io-vertx-vertx-sql-client = { group = "io.vertx", name = "vertx-sql-client", version.ref = "vertxSqlClientVersion" }
 io-vertx-vertx-web = { group = "io.vertx", name = "vertx-web", version.ref = "vertxWebVersion" }
 io-vertx-vertx-web-client = { group = "io.vertx", name = "vertx-web-client", version.ref = "vertxWebClientVersion" }
+kotlinx-coroutines = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 org-apache-logging-log4j-log4j-core = { group = "org.apache.logging.log4j", name = "log4j-core", version.ref = "log4jVersion" }
 org-assertj-assertj-core = { group = "org.assertj", name = "assertj-core", version.ref = "assertjVersion" }
 org-ehcache-ehcache = { group = "org.ehcache", name = "ehcache", version = "3.11.1" }
@@ -57,5 +61,7 @@ org-testcontainers-postgresql = { group = "org.testcontainers", name = "postgres
 
 [plugins]
 com-diffplug-spotless = { id = "com.diffplug.spotless", version = "8.1.0" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-all-open = { id = "org.jetbrains.kotlin.plugin.allopen", version.ref = "kotlin" }
 org-asciidoctor-jvm-convert = { id = "org.asciidoctor.jvm.convert", version = "4.0.5" }
 org-hibernate-orm = { id = "org.hibernate.orm", version.ref = "hibernateOrmGradlePluginVersion" }
