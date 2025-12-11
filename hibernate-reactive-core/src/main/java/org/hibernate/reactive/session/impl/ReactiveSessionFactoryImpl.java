@@ -9,6 +9,8 @@ import org.hibernate.boot.spi.MetadataImplementor;
 import org.hibernate.boot.spi.SessionFactoryOptions;
 import org.hibernate.internal.SessionFactoryImpl;
 import org.hibernate.reactive.boot.spi.ReactiveMetadataImplementor;
+import org.hibernate.reactive.coroutines.Coroutines;
+import org.hibernate.reactive.coroutines.impl.CoroutinesSessionFactoryImpl;
 import org.hibernate.reactive.mutiny.Mutiny;
 import org.hibernate.reactive.mutiny.impl.MutinySessionFactoryImpl;
 import org.hibernate.reactive.sql.exec.internal.ReactiveJdbcSelectWithActions;
@@ -19,7 +21,7 @@ import org.hibernate.sql.exec.spi.JdbcSelectWithActionsBuilder;
 /**
  * A Hibernate {@link org.hibernate.SessionFactory} that can be
  * unwrapped to produce a {@link Stage.SessionFactory} or a
- * {@link Mutiny.SessionFactory}.
+ * {@link Mutiny.SessionFactory} or a {@link Coroutines.SessionFactory}.
  */
 public class ReactiveSessionFactoryImpl extends SessionFactoryImpl {
 
@@ -34,6 +36,9 @@ public class ReactiveSessionFactoryImpl extends SessionFactoryImpl {
 		}
 		if ( type.isAssignableFrom( Mutiny.SessionFactory.class ) ) {
 			return type.cast( new MutinySessionFactoryImpl( this ) );
+		}
+		if ( type.isAssignableFrom( Coroutines.SessionFactory.class ) ) {
+			return type.cast( new CoroutinesSessionFactoryImpl( this ) );
 		}
 		return super.unwrap( type );
 	}
