@@ -5,8 +5,11 @@
 package org.hibernate.reactive.coroutines.impl
 
 import jakarta.persistence.metamodel.Metamodel
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.withContext
 import org.hibernate.Cache
 import org.hibernate.engine.creation.internal.SessionBuilderImpl
@@ -38,7 +41,7 @@ import kotlin.contracts.contract
 
 @HibernateReactiveOpen
 @ExperimentalHibernateReactiveCoroutineApi
-@OptIn(ExperimentalSubclassOptIn::class)
+@OptIn(ExperimentalSubclassOptIn::class, DelicateCoroutinesApi::class, ExperimentalCoroutinesApi::class)
 @SubclassOptInRequired(DelicateHibernateReactiveCoroutineApi::class)
 class CoroutinesSessionFactoryImpl(private val delegate: SessionFactoryImpl) :
     Coroutines.SessionFactory,
@@ -94,8 +97,10 @@ class CoroutinesSessionFactoryImpl(private val delegate: SessionFactoryImpl) :
 
     override fun createStatelessSession(tenantId: String?): Coroutines.StatelessSession {
         val options = options()
-        val sessionImpl = ReactiveStatelessSessionImpl(delegate, options, connectionPool.getProxyConnection(tenantId))
-        return CoroutinesStatelessSessionImpl(sessionImpl)
+        val dispatcher = newSingleThreadContext("HR-Coroutines-StatelessSession")
+        // This can be a problem when reactive stateless session check the thead
+        val session = ReactiveStatelessSessionImpl(delegate, options, connectionPool.getProxyConnection(tenantId))
+        return CoroutinesStatelessSessionImpl(session, dispatcher)
     }
 
     // open session
@@ -124,19 +129,25 @@ class CoroutinesSessionFactoryImpl(private val delegate: SessionFactoryImpl) :
     override suspend fun openStatelessSession(): Coroutines.StatelessSession {
         val options = options()
         val reactiveConnection = connection(getTenantIdentifier(options))
+        val dispatcher = newSingleThreadContext("HR-Coroutines-StatelessSession")
         val session = create(reactiveConnection) {
             // May be converted a problem because is in to-do check the thread
-            ReactiveStatelessSessionImpl(delegate, options, reactiveConnection)
+            withContext(dispatcher) {
+                ReactiveStatelessSessionImpl(delegate, options, reactiveConnection)
+            }
         }
-        return CoroutinesStatelessSessionImpl(session)
+        return CoroutinesStatelessSessionImpl(session, dispatcher)
     }
 
     override suspend fun openStatelessSession(tenantId: String?): Coroutines.StatelessSession {
         val connection = connection(tenantId)
+        val dispatcher = newSingleThreadContext("HR-Coroutines-StatelessSession")
         val session = create(connection) {
-            ReactiveStatelessSessionImpl(delegate, options(tenantId), connection)
+            withContext(dispatcher) {
+                ReactiveStatelessSessionImpl(delegate, options(tenantId), connection)
+            }
         }
-        return CoroutinesStatelessSessionImpl(session)
+        return CoroutinesStatelessSessionImpl(session, dispatcher)
     }
 
     // with session

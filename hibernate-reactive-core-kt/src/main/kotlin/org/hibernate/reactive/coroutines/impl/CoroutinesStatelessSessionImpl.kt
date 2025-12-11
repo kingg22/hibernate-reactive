@@ -22,12 +22,17 @@ import org.hibernate.reactive.coroutines.HibernateReactiveOpen
 import org.hibernate.reactive.session.ReactiveStatelessSession
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
+import kotlin.coroutines.CoroutineContext
 
 @HibernateReactiveOpen
 @ExperimentalHibernateReactiveCoroutineApi
 @OptIn(ExperimentalSubclassOptIn::class)
 @SubclassOptInRequired(DelicateHibernateReactiveCoroutineApi::class)
-class CoroutinesStatelessSessionImpl(private val delegate: ReactiveStatelessSession) : Coroutines.StatelessSession {
+class CoroutinesStatelessSessionImpl(
+    private val delegate: ReactiveStatelessSession,
+    /** The dispatcher used when the [delegate] was created, needs to be a [single thead context][kotlinx.coroutines.newSingleThreadContext] */
+    val dispatcher: CoroutineContext,
+) : Coroutines.StatelessSession {
     private var currentTransaction: Coroutines.Transaction? = null
 
     override suspend fun <T> get(entityClass: Class<T>, id: Any?): T? {
