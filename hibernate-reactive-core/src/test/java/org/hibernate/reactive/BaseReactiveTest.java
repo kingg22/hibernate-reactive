@@ -20,6 +20,7 @@ import org.hibernate.query.sqm.mutation.internal.temptable.GlobalTemporaryTableS
 import org.hibernate.query.sqm.mutation.internal.temptable.PersistentTableStrategy;
 import org.hibernate.reactive.containers.DatabaseConfiguration;
 import org.hibernate.reactive.containers.DatabaseConfiguration.DBType;
+import org.hibernate.reactive.coroutines.Coroutines;
 import org.hibernate.reactive.mutiny.Mutiny;
 import org.hibernate.reactive.pool.ReactiveConnection;
 import org.hibernate.reactive.provider.ReactiveServiceRegistryBuilder;
@@ -322,6 +323,12 @@ public abstract class BaseReactiveTest {
 				return stage.close();
 			}
 		}
+		if ( closable instanceof Coroutines.Session coroutines && coroutines.isOpen()) {
+			return CoroutinesTestHelper.closeAsStage( coroutines);
+		}
+		if ( closable instanceof Coroutines.StatelessSession coroutines && coroutines.isOpen()) {
+			return CoroutinesTestHelper.closeAsStage(coroutines);
+		}
 		return voidFuture();
 	}
 
@@ -389,6 +396,26 @@ public abstract class BaseReactiveTest {
 
 	protected static Mutiny.SessionFactory getMutinySessionFactory() {
 		return factoryManager.getHibernateSessionFactory().unwrap( Mutiny.SessionFactory.class );
+	}
+
+	// TODO Not null annotations is temporal, need review
+	@org.jetbrains.annotations.NotNull
+	protected static Coroutines.SessionFactory getCoroutinesSessionFactory() {
+		return factoryManager.getHibernateSessionFactory().unwrap( Coroutines.SessionFactory.class );
+	}
+
+	@org.jetbrains.annotations.NotNull
+	protected CompletionStage<Coroutines.@org.jetbrains.annotations.NotNull Session> openCoroutinesSession() {
+		return closeSession( session )
+				.thenCompose( v -> CoroutinesTestHelper.openSessionAsStage(getCoroutinesSessionFactory()) )
+				.thenApply( this::saveSession );
+	}
+
+	@org.jetbrains.annotations.NotNull
+	protected CompletionStage<Coroutines.@org.jetbrains.annotations.NotNull StatelessSession> openCoroutinesStatelessSession() {
+		return closeSession( statelessSession )
+				.thenCompose( v -> CoroutinesTestHelper.openStatelessSessionAsStage(getCoroutinesSessionFactory()) )
+				.thenApply( this::saveStatelessSession );
 	}
 
 	private <T> T saveSession(T newSession) {
