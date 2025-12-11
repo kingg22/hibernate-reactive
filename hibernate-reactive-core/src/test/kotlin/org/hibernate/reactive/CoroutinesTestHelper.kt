@@ -1,11 +1,16 @@
-package org.hibernate.reactive.coroutines
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright Red Hat Inc. and Hibernate Authors
+ */
+package org.hibernate.reactive
 
 import io.vertx.junit5.VertxTestContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.future.future
-import org.hibernate.reactive.BaseReactiveTest
+import org.hibernate.reactive.coroutines.Coroutines
 import org.hibernate.reactive.coroutines.Coroutines.Session
 import org.hibernate.reactive.coroutines.Coroutines.StatelessSession
+import org.hibernate.reactive.coroutines.ExperimentalHibernateReactiveCoroutineApi
 import java.util.concurrent.CompletionStage
 import kotlin.coroutines.EmptyCoroutineContext
 
