@@ -10,7 +10,9 @@ import jakarta.persistence.criteria.CriteriaBuilder
 import jakarta.persistence.criteria.CriteriaDelete
 import jakarta.persistence.criteria.CriteriaQuery
 import jakarta.persistence.criteria.CriteriaUpdate
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.future.await
+import kotlinx.coroutines.withContext
 import org.hibernate.LockMode
 import org.hibernate.query.criteria.JpaCriteriaInsert
 import org.hibernate.reactive.common.AffectedEntities
@@ -20,6 +22,7 @@ import org.hibernate.reactive.coroutines.DelicateHibernateReactiveCoroutineApi
 import org.hibernate.reactive.coroutines.ExperimentalHibernateReactiveCoroutineApi
 import org.hibernate.reactive.coroutines.HibernateReactiveOpen
 import org.hibernate.reactive.session.ReactiveStatelessSession
+import java.util.concurrent.CompletableFuture
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 import kotlin.coroutines.CoroutineContext
@@ -137,7 +140,11 @@ class CoroutinesStatelessSessionImpl(
     override fun isOpen(): Boolean = delegate.isOpen
 
     override suspend fun close() {
-        TODO()
+        withContext(dispatcher + NonCancellable) {
+            val closing = CompletableFuture<Void>()
+            delegate.close(closing)
+            closing
+        }.await()
     }
 
     override fun getFactory(): Coroutines.SessionFactory =
@@ -265,28 +272,29 @@ class CoroutinesStatelessSessionImpl(
             contract { callsInPlace(work, InvocationKind.EXACTLY_ONCE) }
             return try {
                 currentTransaction = this
-                begin()
-                executeInTransaction(work)
+                withContext(dispatcher) {
+                    begin()
+                }
+                try {
+                    val result = work(this)
+                    // finally, when there was no exception, commit or rollback the transaction
+                    withContext(dispatcher) {
+                        if (rollback) {
+                            rollback()
+                        } else {
+                            commit()
+                        }
+                    }
+                    result
+                } catch (e: Throwable) {
+                    // in the case of an exception or cancellation, we need to roll back the transaction
+                    withContext(dispatcher) {
+                        rollback()
+                    }
+                    throw e
+                }
             } finally {
                 currentTransaction = null
-            }
-        }
-
-        private suspend inline fun executeInTransaction(work: suspend (Coroutines.Transaction) -> T): T {
-            contract { callsInPlace(work, InvocationKind.EXACTLY_ONCE) }
-            return try {
-                val result = work(this)
-                // finally, when there was no exception, commit or rollback the transaction
-                if (rollback) {
-                    rollback()
-                } else {
-                    commit()
-                }
-                result
-            } catch (e: Throwable) {
-                // in the case of an exception or cancellation, we need to roll back the transaction
-                rollback()
-                throw e
             }
         }
 
