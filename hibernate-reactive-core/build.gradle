@@ -1,7 +1,14 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
+
 plugins {
     id "hr-java-library"
     id "hr-test-containers"
     id "hr-print-resolved-version"
+	alias(libs.plugins.kotlin.jvm)
+	alias(libs.plugins.kotlin.all.open)
 }
 
 ext {
@@ -18,6 +25,8 @@ dependencies {
 	compileOnly(libs.org.hibernate.models)
 
     api(libs.io.smallrye.reactive.mutiny)
+	// Coroutines
+	api(libs.kotlinx.coroutines)
 
     //Logging
     implementation(libs.org.jboss.logging.jboss.logging)
@@ -34,6 +43,8 @@ dependencies {
     // Testing
     testImplementation(libs.org.assertj.assertj.core)
     testImplementation(libs.io.vertx.vertx.junit5)
+
+	testImplementation(libs.kotlinx.coroutines.test)
 
     // Drivers
     testImplementation(libs.io.vertx.vertx.pg.client)
@@ -99,4 +110,42 @@ dependencies {
 tasks.withType(AbstractArchiveTask).configureEach {
     preserveFileTimestamps = false
     reproducibleFileOrder = true
+}
+
+kotlin {
+	compilerOptions {
+		apiVersion.set( KotlinVersion.KOTLIN_2_0)
+		languageVersion.set(apiVersion)
+		optIn.add("kotlin.contracts.ExperimentalContracts")
+		freeCompilerArgs.add("-XXexplicit-return-types=strict")
+		jvmDefault.set( JvmDefaultMode.NO_COMPATIBILITY)
+		extraWarnings.set(true)
+		allWarningsAsErrors.set(true)
+	}
+}
+
+allOpen {
+	annotation("org.hibernate.reactive.coroutines.HibernateReactiveOpen")
+}
+
+// Import version from settings.gradle in root, all are defined as JavaLanguageVersion
+if (gradle.ext.javaToolchainEnabled) {
+	// Need to align kotlin compiler to java compiler version for main and test source sets
+	tasks.named( "compileKotlin", KotlinCompilationTask) {
+		compilerOptions {
+			jvmTarget.set( JvmTarget.fromTarget( gradle.ext.javaVersions.main.release.toString()))
+		}
+	}
+	tasks.named("compileTestKotlin", KotlinCompilationTask) {
+		compilerOptions {
+			jvmTarget.set(JvmTarget.fromTarget(gradle.ext.javaVersions.test.release.toString()))
+		}
+	}
+} else {
+	kotlin {
+		compilerOptions {
+			// Only set global compiler options because in root have the same version for main and test
+			jvmTarget.set(JvmTarget.fromTarget(gradle.ext.javaVersions.main.release.toString()))
+		}
+	}
 }
