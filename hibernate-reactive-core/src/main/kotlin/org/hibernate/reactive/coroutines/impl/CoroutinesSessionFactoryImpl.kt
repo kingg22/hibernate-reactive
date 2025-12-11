@@ -64,6 +64,7 @@ class CoroutinesSessionFactoryImpl(private val delegate: SessionFactoryImpl) :
             "No existing open Coroutines.Session was found in the current Vert.x context for current tenant '%s': opening a new instance"
         private const val OPENING_NEW_STATELESS_SESSION =
             "No existing open Coroutines.StatelessSession was found in the current Vert.x context: opening a new instance"
+        private const val THEAD_NAME_STATELESS = "HR-Coroutines-StatelessSession"
 
         @JvmStatic
         private val log: Log = LoggerFactory.make(Log::class.java, MethodHandles.lookup())
@@ -97,7 +98,7 @@ class CoroutinesSessionFactoryImpl(private val delegate: SessionFactoryImpl) :
 
     override fun createStatelessSession(tenantId: String?): Coroutines.StatelessSession {
         val options = options()
-        val dispatcher = newSingleThreadContext("HR-Coroutines-StatelessSession")
+        val dispatcher = newSingleThreadContext(THEAD_NAME_STATELESS)
         // This can be a problem when reactive stateless session check the thead
         val session = ReactiveStatelessSessionImpl(delegate, options, connectionPool.getProxyConnection(tenantId))
         return CoroutinesStatelessSessionImpl(session, dispatcher)
@@ -129,7 +130,7 @@ class CoroutinesSessionFactoryImpl(private val delegate: SessionFactoryImpl) :
     override suspend fun openStatelessSession(): Coroutines.StatelessSession {
         val options = options()
         val reactiveConnection = connection(getTenantIdentifier(options))
-        val dispatcher = newSingleThreadContext("HR-Coroutines-StatelessSession")
+        val dispatcher = newSingleThreadContext(THEAD_NAME_STATELESS)
         val session = create(reactiveConnection) {
             // May be converted a problem because is in to-do check the thread
             withContext(dispatcher) {
@@ -141,7 +142,7 @@ class CoroutinesSessionFactoryImpl(private val delegate: SessionFactoryImpl) :
 
     override suspend fun openStatelessSession(tenantId: String?): Coroutines.StatelessSession {
         val connection = connection(tenantId)
-        val dispatcher = newSingleThreadContext("HR-Coroutines-StatelessSession")
+        val dispatcher = newSingleThreadContext(THEAD_NAME_STATELESS)
         val session = create(connection) {
             withContext(dispatcher) {
                 ReactiveStatelessSessionImpl(delegate, options(tenantId), connection)
