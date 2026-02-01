@@ -87,10 +87,9 @@ public class StageSessionFactoryImpl implements Stage.SessionFactory, Implemento
 	}
 
 	@Override
-	public Stage.Session createSession(String tenantId) {
+	public Stage.Session createSession(@Nullable String tenantId) {
 		final SessionCreationOptions options = options();
-		ReactiveConnectionPool pool = delegate.getServiceRegistry().getService( ReactiveConnectionPool.class );
-		ReactiveSessionImpl sessionImpl = new ReactiveSessionImpl( delegate, options, pool.getProxyConnection( tenantId ) );
+		ReactiveSessionImpl sessionImpl = new ReactiveSessionImpl( delegate, options, connectionPool.getProxyConnection( tenantId ) );
 		return new StageSessionImpl( sessionImpl );
 	}
 
@@ -100,10 +99,9 @@ public class StageSessionFactoryImpl implements Stage.SessionFactory, Implemento
 	}
 
 	@Override
-	public Stage.StatelessSession createStatelessSession(String tenantId) {
+	public Stage.StatelessSession createStatelessSession(@Nullable String tenantId) {
 		final SessionCreationOptions options = options();
-		ReactiveConnectionPool pool = delegate.getServiceRegistry().getService( ReactiveConnectionPool.class );
-		ReactiveStatelessSession sessionImpl = new ReactiveStatelessSessionImpl( delegate, options, pool.getProxyConnection( tenantId ) );
+		ReactiveStatelessSession sessionImpl = new ReactiveStatelessSessionImpl( delegate, options, connectionPool.getProxyConnection( tenantId ) );
 		return new StageStatelessSessionImpl( sessionImpl );
 	}
 
@@ -271,7 +269,7 @@ public class StageSessionFactoryImpl implements Stage.SessionFactory, Implemento
 					// and still be able to close the session in case of errors
 					.thenCompose( v -> work.apply( session ) )
 					.handle( this::handler )
-					.thenCompose( handler -> {
+					.thenCompose( (Function<@Nullable Void, T> handler) -> {
 						context.remove( contextKey );
 						return session.close()
 								// Using .handle (instead of .thenApply(handler) because
