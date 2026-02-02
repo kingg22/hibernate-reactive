@@ -25,17 +25,12 @@ import org.hibernate.reactive.session.ReactiveStatelessSession
 import java.util.concurrent.CompletableFuture
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
-import kotlin.coroutines.CoroutineContext
 
 @HibernateReactiveOpen
 @ExperimentalHibernateReactiveCoroutineApi
 @OptIn(ExperimentalSubclassOptIn::class)
 @SubclassOptInRequired(DelicateHibernateReactiveCoroutineApi::class)
-class CoroutinesStatelessSessionImpl(
-    private val delegate: ReactiveStatelessSession,
-    /** The dispatcher used when the [delegate] was created, needs to be a [single thead context][kotlinx.coroutines.newSingleThreadContext] */
-    val dispatcher: CoroutineContext,
-) : Coroutines.StatelessSession {
+class CoroutinesStatelessSessionImpl(private val delegate: ReactiveStatelessSession) : Coroutines.StatelessSession {
     private var currentTransaction: Coroutines.Transaction? = null
 
     override suspend fun <T> get(entityClass: Class<T>, id: Any?): T? {
@@ -140,11 +135,11 @@ class CoroutinesStatelessSessionImpl(
     override fun isOpen(): Boolean = delegate.isOpen
 
     override suspend fun close() {
-        withContext(dispatcher + NonCancellable) {
+        withContext(NonCancellable) {
             val closing = CompletableFuture<Void>()
             delegate.close(closing)
-            closing
-        }.await()
+            closing.await()
+        }
     }
 
     override fun getFactory(): Coroutines.SessionFactory =
@@ -272,25 +267,19 @@ class CoroutinesStatelessSessionImpl(
             contract { callsInPlace(work, InvocationKind.EXACTLY_ONCE) }
             return try {
                 currentTransaction = this
-                withContext(dispatcher) {
-                    begin()
-                }
+                begin()
                 try {
                     val result = work(this)
                     // finally, when there was no exception, commit or rollback the transaction
-                    withContext(dispatcher) {
-                        if (rollback) {
-                            rollback()
-                        } else {
-                            commit()
-                        }
+                    if (rollback) {
+                        rollback()
+                    } else {
+                        commit()
                     }
                     result
                 } catch (e: Throwable) {
                     // in the case of an exception or cancellation, we need to roll back the transaction
-                    withContext(dispatcher) {
-                        rollback()
-                    }
+                    rollback()
                     throw e
                 }
             } finally {
