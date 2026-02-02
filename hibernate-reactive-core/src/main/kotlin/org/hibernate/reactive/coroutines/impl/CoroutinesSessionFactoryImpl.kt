@@ -5,11 +5,10 @@
 package org.hibernate.reactive.coroutines.impl
 
 import jakarta.persistence.metamodel.Metamodel
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.future.await
-import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.withContext
 import org.hibernate.Cache
 import org.hibernate.engine.creation.internal.SessionBuilderImpl
@@ -41,7 +40,7 @@ import kotlin.contracts.contract
 
 @HibernateReactiveOpen
 @ExperimentalHibernateReactiveCoroutineApi
-@OptIn(ExperimentalSubclassOptIn::class, DelicateCoroutinesApi::class, ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalSubclassOptIn::class)
 @SubclassOptInRequired(DelicateHibernateReactiveCoroutineApi::class)
 class CoroutinesSessionFactoryImpl(private val delegate: SessionFactoryImpl) :
     Coroutines.SessionFactory,
@@ -64,7 +63,6 @@ class CoroutinesSessionFactoryImpl(private val delegate: SessionFactoryImpl) :
             "No existing open Coroutines.Session was found in the current Vert.x context for current tenant '%s': opening a new instance"
         private const val OPENING_NEW_STATELESS_SESSION =
             "No existing open Coroutines.StatelessSession was found in the current Vert.x context: opening a new instance"
-        private const val THEAD_NAME_STATELESS = "HR-Coroutines-StatelessSession"
 
         @JvmStatic
         private val log: Log = LoggerFactory.make(Log::class.java, MethodHandles.lookup())
@@ -98,10 +96,9 @@ class CoroutinesSessionFactoryImpl(private val delegate: SessionFactoryImpl) :
 
     override fun createStatelessSession(tenantId: String?): Coroutines.StatelessSession {
         val options = options()
-        val dispatcher = newSingleThreadContext(THEAD_NAME_STATELESS)
         // This can be a problem when reactive stateless session check the thead
         val session = ReactiveStatelessSessionImpl(delegate, options, connectionPool.getProxyConnection(tenantId))
-        return CoroutinesStatelessSessionImpl(session, dispatcher)
+        return CoroutinesStatelessSessionImpl(session)
     }
 
     // open session
@@ -130,25 +127,19 @@ class CoroutinesSessionFactoryImpl(private val delegate: SessionFactoryImpl) :
     override suspend fun openStatelessSession(): Coroutines.StatelessSession {
         val options = options()
         val reactiveConnection = connection(getTenantIdentifier(options))
-        val dispatcher = newSingleThreadContext(THEAD_NAME_STATELESS)
         val session = create(reactiveConnection) {
             // May be converted a problem because is in to-do check the thread
-            withContext(dispatcher) {
-                ReactiveStatelessSessionImpl(delegate, options, reactiveConnection)
-            }
+            ReactiveStatelessSessionImpl(delegate, options, reactiveConnection)
         }
-        return CoroutinesStatelessSessionImpl(session, dispatcher)
+        return CoroutinesStatelessSessionImpl(session)
     }
 
     override suspend fun openStatelessSession(tenantId: String?): Coroutines.StatelessSession {
         val connection = connection(tenantId)
-        val dispatcher = newSingleThreadContext(THEAD_NAME_STATELESS)
         val session = create(connection) {
-            withContext(dispatcher) {
-                ReactiveStatelessSessionImpl(delegate, options(tenantId), connection)
-            }
+            ReactiveStatelessSessionImpl(delegate, options(tenantId), connection)
         }
-        return CoroutinesStatelessSessionImpl(session, dispatcher)
+        return CoroutinesStatelessSessionImpl(session)
     }
 
     // with session
@@ -263,11 +254,11 @@ class CoroutinesSessionFactoryImpl(private val delegate: SessionFactoryImpl) :
     private final suspend inline fun <S> create(connection: ReactiveConnection, supplier: () -> S): S {
         contract { callsInPlace(supplier, InvocationKind.EXACTLY_ONCE) }
         return try {
-            // ReactiveSessionImpl and ReactiveStatelessSessionImpl need to be called in event loop
+            // ReactiveSessionImpl and ReactiveStatelessSessionImpl need to be called in the event loop
             supplier()
         } catch (e: Throwable) {
             // This use NonCancellable job, don't change the dispatcher
-            // At 4 july 2025 is safe call this outside of hibernate context
+            // At 4 july 2025 it's safe to call this outside of the Hibernate context
             withContext(NonCancellable) { connection.close() }
             throw e
         }
@@ -289,8 +280,8 @@ class CoroutinesSessionFactoryImpl(private val delegate: SessionFactoryImpl) :
             try {
                 session.close()
             } catch (_: Throwable) {
-                // TODO need to check if is safe catch CancellationException of coroutines
-                // currentCoroutineContext().ensureActive()
+                // need to re-throw the CancellationException of coroutines cancellation mechanism
+                currentCoroutineContext().ensureActive()
                 // Only throw the original exception in case an error occurs while closing the session
             }
         }
